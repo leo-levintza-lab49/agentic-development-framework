@@ -24,9 +24,14 @@ Based on input parameters:
 - Filtered: Repos matching criteria (team, technology, priority)
 
 Load configuration from:
-- `/Users/leo.levintza/wrk/first-agentic-ai/config/repositories.csv`
-- `/Users/leo.levintza/wrk/first-agentic-ai/config/teams.csv`
-- `/Users/leo.levintza/wrk/first-agentic-ai/config/doc-definitions.yaml`
+- `$FRAMEWORK_ROOT/config/repositories.csv` (or detect from git remote)
+- `$FRAMEWORK_ROOT/config/teams.csv`
+- `$FRAMEWORK_ROOT/config/doc-definitions.yaml`
+
+Auto-detect FRAMEWORK_ROOT from:
+1. Environment variable `FRAMEWORK_ROOT`
+2. Git remote origin URL containing "agentic-development-framework"
+3. Default: search parent directories for config/repositories.csv
 
 ### Step 2: For Each Repository - Code Analysis
 
@@ -258,11 +263,17 @@ Status: ✅ Success / ⚠️  Partial / ❌ Failed
 
 ## Configuration
 
-Load from environment or defaults:
-- **POLYBASE_ORG**: "polybase-poc"
-- **OMNIBASE_ORG**: "omnibase-poc"
-- **BASE_DIR**: "/Users/leo.levintza/wrk"
-- **CONFIG_DIR**: "/Users/leo.levintza/wrk/first-agentic-ai/config"
+Load from environment variables or auto-detect:
+- **MULTIREPO_ORG**: Auto-detect from git remote or use "polybase-poc"
+- **MONOREPO_ORG**: Auto-detect from git remote or use "omnibase-poc"
+- **FRAMEWORK_ROOT**: Auto-detect from git remote or search for config dir
+- **BASE_DIR**: Auto-detect from repository location (e.g., ~/wrk/polybase/)
+
+Auto-detection strategy:
+1. Check environment variables
+2. Parse git remote origin URL
+3. Search parent directories for framework config
+4. Use sensible defaults as fallback
 
 ## Integration Points
 

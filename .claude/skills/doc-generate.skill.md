@@ -149,12 +149,11 @@ Parameters:
 - Skip PR: ${skipPR}
 
 Configuration:
-- Config dir: /Users/leo.levintza/wrk/first-agentic-ai/config
-- Polybase org: polybase-poc
-- Omnibase org: omnibase-poc
-- Base dir: /Users/leo.levintza/wrk
+- Auto-detect organization from git remote
+- Auto-detect framework root from config files
+- Auto-detect base directory from repository location
 
-Execute the full documentation generation workflow.`
+Execute the full documentation generation workflow using auto-detected configuration.`
 })
 ```
 
