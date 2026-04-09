@@ -1,0 +1,270 @@
+import express, { Application, Request, Response } from 'express';
+import helmet from 'helmet';
+import cors from 'cors';
+import compression from 'compression';
+import rateLimit from 'express-rate-limit';
+import { config } from './config';
+import { logger } from './utils/logger';
+import {
+  requestLogger,
+  errorHandler,
+  notFound,
+  authenticate,
+  validateRequest,
+  timeout
+} from './middleware/{{MIDDLEWARE_NAME}}.middleware';
+
+// Import routes
+import {{ROUTE_NAME}}Routes from './routes/{{ROUTE_NAME}}.routes';
+
+/**
+ * Create and configure Express application
+ */
+export function createApp(): Application {
+  const app: Application = express();
+
+  // Trust proxy - important for rate limiting and IP detection behind load balancers
+  app.set('trust proxy', 1);
+
+  // Security middleware
+  app.use(helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        scriptSrc: ["'self'"],
+        imgSrc: ["'self'", 'data:', 'https:']
+      }
+    },
+    hsts: {
+      maxAge: 31536000,
+      includeSubDomains: true,
+      preload: true
+    }
+  }));
+
+  // CORS configuration
+  const corsOptions = {
+    origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+      const allowedOrigins = config.cors.allowedOrigins || ['http://localhost:3000'];
+
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      if (allowedOrigins.indexOf(origin) !== -1 || allowedOrigins.includes('*')) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    exposedHeaders: ['X-Total-Count', 'X-Request-Id'],
+    maxAge: 86400 // 24 hours
+  };
+  app.use(cors(corsOptions));
+
+  // Compression middleware
+  app.use(compression({
+    filter: (req, res) => {
+      if (req.headers['x-no-compression']) {
+        return false;
+      }
+      return compression.filter(req, res);
+    },
+    level: 6
+  }));
+
+  // Body parsing middleware
+  app.use(express.json({ limit: '10mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+  // Request validation middleware
+  app.use(validateRequest);
+
+  // Request logging middleware
+  app.use(requestLogger);
+
+  // Request timeout middleware (30 seconds)
+  app.use(timeout(30000));
+
+  // Rate limiting
+  const limiter = rateLimit({
+    windowMs: config.rateLimit.windowMs || 15 * 60 * 1000, // 15 minutes
+    max: config.rateLimit.maxRequests || 100, // limit each IP to 100 requests per windowMs
+    message: {
+      success: false,
+      error: {
+        message: 'Too many requests from this IP, please try again later.'
+      }
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+    skip: (req) => {
+      // Skip rate limiting for health check endpoints
+      return req.path === '/health' || req.path === '/health/ready';
+    }
+  });
+  app.use(limiter);
+
+  // Health check endpoints
+  app.get('/health', (req: Request, res: Response) => {
+    res.json({
+      success: true,
+      data: {
+        status: 'healthy',
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime(),
+        service: '{{APP_NAME}}',
+        version: process.env.npm_package_version || '1.0.0'
+      }
+    });
+  });
+
+  app.get('/health/ready', (req: Request, res: Response) => {
+    // Check if service is ready (e.g., database connections, external services)
+    const isReady = true; // Add your readiness checks here
+
+    if (isReady) {
+      res.json({
+        success: true,
+        data: {
+          status: 'ready',
+          timestamp: new Date().toISOString()
+        }
+      });
+    } else {
+      res.status(503).json({
+        success: false,
+        error: {
+          message: 'Service not ready'
+        }
+      });
+    }
+  });
+
+  app.get('/health/live', (req: Request, res: Response) => {
+    res.json({
+      success: true,
+      data: {
+        status: 'alive',
+        timestamp: new Date().toISOString()
+      }
+    });
+  });
+
+  // API documentation endpoint
+  app.get('/api', (req: Request, res: Response) => {
+    res.json({
+      success: true,
+      data: {
+        name: '{{APP_NAME}}',
+        version: process.env.npm_package_version || '1.0.0',
+        description: '{{APP_NAME}} REST API',
+        endpoints: {
+          health: '/health',
+          readiness: '/health/ready',
+          liveness: '/health/live',
+          api: '/api',
+          routes: {
+            '{{ROUTE_NAME}}': '/api/v1/{{ROUTE_NAME}}'
+          }
+        },
+        documentation: '/api/docs'
+      }
+    });
+  });
+
+  // API Routes
+  app.use('/api/v1/{{ROUTE_NAME}}', {{ROUTE_NAME}}Routes);
+
+  // Protected routes example (with authentication)
+  // app.use('/api/v1/protected', authenticate, protectedRoutes);
+
+  // 404 handler - must be after all routes
+  app.use(notFound);
+
+  // Error handling middleware - must be last
+  app.use(errorHandler);
+
+  // Graceful shutdown handling
+  const gracefulShutdown = (signal: string) => {
+    logger.info(`Received ${signal}, starting graceful shutdown`);
+
+    // Close server connections
+    process.exit(0);
+  };
+
+  process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+  process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+  // Unhandled promise rejection handler
+  process.on('unhandledRejection', (reason: Error | any, promise: Promise<any>) => {
+    logger.error('Unhandled Promise Rejection', {
+      reason: reason.message || reason,
+      stack: reason.stack,
+      promise
+    });
+  });
+
+  // Uncaught exception handler
+  process.on('uncaughtException', (error: Error) => {
+    logger.error('Uncaught Exception', {
+      error: error.message,
+      stack: error.stack
+    });
+
+    // Exit process after logging
+    process.exit(1);
+  });
+
+  return app;
+}
+
+/**
+ * Start the Express server
+ */
+export function startServer(): void {
+  const app = createApp();
+  const port = config.port || 3000;
+
+  const server = app.listen(port, () => {
+    logger.info(`{{APP_NAME}} server started`, {
+      port,
+      environment: config.env,
+      nodeVersion: process.version,
+      pid: process.pid
+    });
+  });
+
+  // Set server timeout
+  server.timeout = 30000; // 30 seconds
+
+  // Handle server errors
+  server.on('error', (error: NodeJS.ErrnoException) => {
+    if (error.syscall !== 'listen') {
+      throw error;
+    }
+
+    switch (error.code) {
+      case 'EACCES':
+        logger.error(`Port ${port} requires elevated privileges`);
+        process.exit(1);
+        break;
+      case 'EADDRINUSE':
+        logger.error(`Port ${port} is already in use`);
+        process.exit(1);
+        break;
+      default:
+        throw error;
+    }
+  });
+}
+
+// Start server if this file is run directly
+if (require.main === module) {
+  startServer();
+}

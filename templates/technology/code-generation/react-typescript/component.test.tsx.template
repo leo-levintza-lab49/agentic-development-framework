@@ -1,0 +1,191 @@
+import React from 'react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { axe, toHaveNoViolations } from 'jest-axe';
+import { {{COMPONENT_NAME}} } from './{{COMPONENT_NAME}}';
+
+// Extend Jest matchers
+expect.extend(toHaveNoViolations);
+
+/**
+ * Test suite for {{COMPONENT_NAME}} component
+ */
+describe('{{COMPONENT_NAME}}', () => {
+  // Default props for testing
+  const defaultProps = {
+    // Add default props here
+  };
+
+  /**
+   * Setup function to render component with props
+   */
+  const setup = (props = {}) => {
+    const user = userEvent.setup();
+    const utils = render(<{{COMPONENT_NAME}} {...defaultProps} {...props} />);
+    return {
+      user,
+      ...utils,
+    };
+  };
+
+  describe('Rendering', () => {
+    it('should render without crashing', () => {
+      setup();
+      expect(screen.getByRole('region', { name: /{{COMPONENT_NAME}}/i })).toBeInTheDocument();
+    });
+
+    it('should render with correct props', () => {
+      const props = {
+        // Add specific props to test
+      };
+      setup(props);
+      // Add assertions
+    });
+
+    it('should render children correctly', () => {
+      const { container } = setup();
+      expect(container.firstChild).toMatchSnapshot();
+    });
+  });
+
+  describe('User Interactions', () => {
+    it('should handle click events', async () => {
+      const handleClick = jest.fn();
+      const { user } = setup({ onClick: handleClick });
+
+      const button = screen.getByRole('button');
+      await user.click(button);
+
+      expect(handleClick).toHaveBeenCalledTimes(1);
+    });
+
+    it('should handle keyboard navigation', async () => {
+      const { user } = setup();
+
+      // Tab to focus element
+      await user.tab();
+
+      const focusedElement = screen.getByRole('button');
+      expect(focusedElement).toHaveFocus();
+
+      // Press Enter
+      await user.keyboard('{Enter}');
+      // Add assertions
+    });
+
+    it('should handle input changes', async () => {
+      const handleChange = jest.fn();
+      const { user } = setup({ onChange: handleChange });
+
+      const input = screen.getByRole('textbox');
+      await user.type(input, 'test value');
+
+      expect(handleChange).toHaveBeenCalled();
+      expect(input).toHaveValue('test value');
+    });
+  });
+
+  describe('State Management', () => {
+    it('should update state on user action', async () => {
+      const { user } = setup();
+
+      const button = screen.getByRole('button');
+      await user.click(button);
+
+      // Check for state change effects
+      await waitFor(() => {
+        expect(screen.getByText(/updated/i)).toBeInTheDocument();
+      });
+    });
+
+    it('should reset state when needed', async () => {
+      const { user } = setup();
+
+      const input = screen.getByRole('textbox');
+      await user.type(input, 'test');
+
+      const resetButton = screen.getByRole('button', { name: /reset/i });
+      await user.click(resetButton);
+
+      expect(input).toHaveValue('');
+    });
+  });
+
+  describe('Accessibility', () => {
+    it('should have no accessibility violations', async () => {
+      const { container } = setup();
+      const results = await axe(container);
+      expect(results).toHaveNoViolations();
+    });
+
+    it('should have proper ARIA attributes', () => {
+      setup();
+
+      const component = screen.getByRole('region');
+      expect(component).toHaveAttribute('aria-label');
+    });
+
+    it('should support screen readers', () => {
+      setup();
+
+      const button = screen.getByRole('button');
+      expect(button).toHaveAccessibleName();
+      expect(button).toHaveAccessibleDescription();
+    });
+
+    it('should handle focus management', async () => {
+      const { user } = setup();
+
+      // Test focus trap or focus management
+      await user.tab();
+      const firstFocusable = document.activeElement;
+
+      await user.tab();
+      const secondFocusable = document.activeElement;
+
+      expect(firstFocusable).not.toBe(secondFocusable);
+    });
+  });
+
+  describe('Error Handling', () => {
+    it('should display error messages', () => {
+      const errorMessage = 'An error occurred';
+      setup({ error: errorMessage });
+
+      expect(screen.getByRole('alert')).toHaveTextContent(errorMessage);
+    });
+
+    it('should handle async errors gracefully', async () => {
+      const consoleError = jest.spyOn(console, 'error').mockImplementation();
+
+      setup({ onError: () => Promise.reject(new Error('Async error')) });
+
+      // Trigger error
+      const button = screen.getByRole('button');
+      fireEvent.click(button);
+
+      await waitFor(() => {
+        expect(consoleError).toHaveBeenCalled();
+      });
+
+      consoleError.mockRestore();
+    });
+  });
+
+  describe('Edge Cases', () => {
+    it('should handle empty props', () => {
+      render(<{{COMPONENT_NAME}} />);
+      expect(screen.getByRole('region')).toBeInTheDocument();
+    });
+
+    it('should handle null/undefined values', () => {
+      setup({ value: null });
+      // Add assertions for null handling
+    });
+
+    it('should handle loading state', () => {
+      setup({ isLoading: true });
+      expect(screen.getByRole('status')).toHaveAttribute('aria-busy', 'true');
+    });
+  });
+});

@@ -1,0 +1,22 @@
+# Data Platform Team - Code Owners
+# This file defines the default reviewers for all pull requests in this repository.
+# At least 2 reviewers are required: one from data-platform and one from backend.
+
+# Default owners for everything in the repo
+* @polybase-poc/data-platform @polybase-poc/backend
+
+# Database migrations require additional review from platform team
+/migrations/ @polybase-poc/data-platform @polybase-poc/backend @polybase-poc/platform
+
+# Schema definitions require data engineering lead approval
+/schemas/ @polybase-poc/data-platform @data-eng-lead
+
+# Critical production data pipelines require senior engineer review
+/pipelines/production/ @polybase-poc/data-platform @senior-data-engineer
+
+# Infrastructure as code requires platform team review
+/terraform/ @polybase-poc/platform @polybase-poc/data-platform
+/kubernetes/ @polybase-poc/platform @polybase-poc/data-platform
+
+# Documentation can be approved by any team member
+/docs/ @polybase-poc/data-platform

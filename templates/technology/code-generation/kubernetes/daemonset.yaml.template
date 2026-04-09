@@ -1,0 +1,64 @@
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: {{DAEMONSET_NAME}}
+  labels:
+    app: {{APP_NAME}}
+spec:
+  selector:
+    matchLabels:
+      app: {{APP_NAME}}
+  updateStrategy:
+    type: {{UPDATE_STRATEGY_TYPE}}
+    rollingUpdate:
+      maxUnavailable: {{MAX_UNAVAILABLE}}
+  template:
+    metadata:
+      labels:
+        app: {{APP_NAME}}
+    spec:
+      # Node selector to run on specific nodes
+      nodeSelector:
+        {{NODE_SELECTOR}}
+
+      # Tolerations for running on tainted nodes
+      tolerations:
+      {{TOLERATIONS}}
+
+      # Host network, PID, or IPC if needed
+      hostNetwork: {{HOST_NETWORK}}
+      hostPID: {{HOST_PID}}
+      hostIPC: {{HOST_IPC}}
+
+      containers:
+      - name: {{CONTAINER_NAME}}
+        image: {{IMAGE}}
+        imagePullPolicy: {{IMAGE_PULL_POLICY}}
+        securityContext:
+          privileged: {{PRIVILEGED}}
+          capabilities:
+            add:
+            {{CAPABILITIES_ADD}}
+        env:
+        {{ENV_VARS}}
+        resources:
+          requests:
+            cpu: {{CPU_REQUEST}}
+            memory: {{MEMORY_REQUEST}}
+          limits:
+            cpu: {{CPU_LIMIT}}
+            memory: {{MEMORY_LIMIT}}
+        volumeMounts:
+        {{VOLUME_MOUNTS}}
+      volumes:
+      {{VOLUMES}}
+      {{IMAGE_PULL_SECRETS}}
+      terminationGracePeriodSeconds: {{TERMINATION_GRACE_PERIOD}}
+
+# Common DaemonSet use cases:
+# - Log collection agents (Fluentd, Filebeat)
+# - Monitoring agents (Prometheus Node Exporter, Datadog)
+# - Network plugins (Calico, Weave)
+# - Storage plugins
+# - Security agents

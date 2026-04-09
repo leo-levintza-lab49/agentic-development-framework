@@ -1,0 +1,242 @@
+/**
+ * {{MODEL_NAME}} Model
+ * TypeScript interfaces and types for {{MODEL_NAME}} entities
+ */
+
+/**
+ * Base entity interface with common fields
+ */
+export interface BaseEntity {
+  id: string;
+  createdAt: Date;
+  updatedAt: Date;
+  deletedAt?: Date | null;
+}
+
+/**
+ * Main {{MODEL_NAME}} interface
+ */
+export interface {{MODEL_NAME}} extends BaseEntity {
+  {{FIELDS}}
+}
+
+/**
+ * DTO for creating a new {{MODEL_NAME}}
+ */
+export interface Create{{MODEL_NAME}}Dto {
+  {{FIELDS}}
+}
+
+/**
+ * DTO for updating an existing {{MODEL_NAME}}
+ */
+export interface Update{{MODEL_NAME}}Dto {
+  {{FIELDS}}
+}
+
+/**
+ * DTO for partially updating a {{MODEL_NAME}}
+ */
+export type Patch{{MODEL_NAME}}Dto = Partial<Update{{MODEL_NAME}}Dto>;
+
+/**
+ * Query parameters for filtering {{MODEL_NAME}}
+ */
+export interface {{MODEL_NAME}}QueryParams {
+  page?: number;
+  limit?: number;
+  sort?: keyof {{MODEL_NAME}};
+  order?: 'asc' | 'desc';
+  search?: string;
+  status?: {{MODEL_NAME}}Status;
+  startDate?: Date;
+  endDate?: Date;
+}
+
+/**
+ * Enum for {{MODEL_NAME}} status
+ */
+export enum {{MODEL_NAME}}Status {
+  ACTIVE = 'active',
+  INACTIVE = 'inactive',
+  PENDING = 'pending',
+  ARCHIVED = 'archived'
+}
+
+/**
+ * Response wrapper for single {{MODEL_NAME}}
+ */
+export interface {{MODEL_NAME}}Response {
+  success: boolean;
+  data: {{MODEL_NAME}};
+  message?: string;
+}
+
+/**
+ * Response wrapper for list of {{MODEL_NAME}}
+ */
+export interface {{MODEL_NAME}}ListResponse {
+  success: boolean;
+  data: {{MODEL_NAME}}[];
+  pagination: PaginationMeta;
+  message?: string;
+}
+
+/**
+ * Pagination metadata
+ */
+export interface PaginationMeta {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+}
+
+/**
+ * Error response structure
+ */
+export interface ErrorResponse {
+  success: false;
+  error: {
+    message: string;
+    code?: string;
+    details?: any;
+    stack?: string;
+  };
+  requestId?: string;
+}
+
+/**
+ * Type guards for runtime type checking
+ */
+export const is{{MODEL_NAME}} = (obj: any): obj is {{MODEL_NAME}} => {
+  return (
+    obj &&
+    typeof obj.id === 'string' &&
+    obj.createdAt instanceof Date &&
+    obj.updatedAt instanceof Date
+  );
+};
+
+export const isCreate{{MODEL_NAME}}Dto = (obj: any): obj is Create{{MODEL_NAME}}Dto => {
+  return obj && typeof obj === 'object';
+};
+
+/**
+ * Utility type for making all properties optional except specified ones
+ */
+export type RequireOnly<T, K extends keyof T> = Partial<T> & Pick<T, K>;
+
+/**
+ * Utility type for making all properties required except specified ones
+ */
+export type OptionalExcept<T, K extends keyof T> = Required<T> & Partial<Pick<T, K>>;
+
+/**
+ * Utility type for nested partial
+ */
+export type DeepPartial<T> = {
+  [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
+};
+
+/**
+ * Utility type for omitting base entity fields
+ */
+export type {{MODEL_NAME}}WithoutBase = Omit<{{MODEL_NAME}}, keyof BaseEntity>;
+
+/**
+ * Utility type for selecting specific fields
+ */
+export type {{MODEL_NAME}}Select<T extends keyof {{MODEL_NAME}}> = Pick<{{MODEL_NAME}}, T>;
+
+/**
+ * Validation schemas (using Joi or similar)
+ */
+export const {{MODEL_NAME}}ValidationSchema = {
+  create: {
+    // Define validation rules for creating {{MODEL_NAME}}
+  },
+  update: {
+    // Define validation rules for updating {{MODEL_NAME}}
+  }
+};
+
+/**
+ * Default values for {{MODEL_NAME}}
+ */
+export const {{MODEL_NAME}}Defaults: Partial<{{MODEL_NAME}}> = {
+  status: {{MODEL_NAME}}Status.PENDING,
+};
+
+/**
+ * Constants related to {{MODEL_NAME}}
+ */
+export const {{MODEL_NAME}}Constants = {
+  MAX_NAME_LENGTH: 255,
+  MAX_DESCRIPTION_LENGTH: 1000,
+  MIN_NAME_LENGTH: 3,
+  DEFAULT_PAGE_SIZE: 10,
+  MAX_PAGE_SIZE: 100
+} as const;
+
+/**
+ * Aggregated model combining data from multiple sources (BFF pattern)
+ */
+export interface {{MODEL_NAME}}Aggregated extends {{MODEL_NAME}} {
+  relatedData?: any;
+  metadata?: {
+    views?: number;
+    likes?: number;
+    comments?: number;
+  };
+  statistics?: {
+    totalRevenue?: number;
+    totalOrders?: number;
+    averageRating?: number;
+  };
+}
+
+/**
+ * Event types for {{MODEL_NAME}}
+ */
+export enum {{MODEL_NAME}}EventType {
+  CREATED = '{{MODEL_NAME}}.created',
+  UPDATED = '{{MODEL_NAME}}.updated',
+  DELETED = '{{MODEL_NAME}}.deleted',
+  STATUS_CHANGED = '{{MODEL_NAME}}.status_changed'
+}
+
+/**
+ * Event payload for {{MODEL_NAME}} events
+ */
+export interface {{MODEL_NAME}}Event {
+  type: {{MODEL_NAME}}EventType;
+  timestamp: Date;
+  data: {{MODEL_NAME}};
+  metadata?: {
+    userId?: string;
+    source?: string;
+    version?: string;
+  };
+}
+
+/**
+ * Cache key builder for {{MODEL_NAME}}
+ */
+export class {{MODEL_NAME}}CacheKey {
+  private static readonly PREFIX = '{{MODEL_NAME}}';
+
+  static byId(id: string): string {
+    return `${this.PREFIX}:${id}`;
+  }
+
+  static list(params: {{MODEL_NAME}}QueryParams): string {
+    return `${this.PREFIX}:list:${JSON.stringify(params)}`;
+  }
+
+  static pattern(pattern: string): string {
+    return `${this.PREFIX}:${pattern}*`;
+  }
+}

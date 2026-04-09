@@ -1,0 +1,49 @@
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: {{APP_NAME}}-hpa
+  labels:
+    app: {{APP_NAME}}
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: {{APP_NAME}}
+  minReplicas: {{MIN_REPLICAS}}
+  maxReplicas: {{MAX_REPLICAS}}
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: {{CPU_TARGET_UTILIZATION}}
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: {{MEMORY_TARGET_UTILIZATION}}
+  {{CUSTOM_METRICS}}
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: {{SCALE_DOWN_STABILIZATION}}
+      policies:
+      - type: Percent
+        value: {{SCALE_DOWN_PERCENT}}
+        periodSeconds: {{SCALE_DOWN_PERIOD}}
+      - type: Pods
+        value: {{SCALE_DOWN_PODS}}
+        periodSeconds: {{SCALE_DOWN_PERIOD}}
+      selectPolicy: Min
+    scaleUp:
+      stabilizationWindowSeconds: {{SCALE_UP_STABILIZATION}}
+      policies:
+      - type: Percent
+        value: {{SCALE_UP_PERCENT}}
+        periodSeconds: {{SCALE_UP_PERIOD}}
+      - type: Pods
+        value: {{SCALE_UP_PODS}}
+        periodSeconds: {{SCALE_UP_PERIOD}}
+      selectPolicy: Max

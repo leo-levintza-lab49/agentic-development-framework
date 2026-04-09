@@ -1,0 +1,20 @@
+# Team Specifications for GitHub Organizations
+# Format: org,team_name,team_slug,description,permission
+#
+# Permission levels: pull, triage, push, maintain, admin
+
+# Polybase-poc (Multi-repo) Teams
+polybase-poc,Data Platform,data-platform,"Database schemas and data infrastructure",push
+polybase-poc,Backend Engineers,backend,"Backend microservices development",push
+polybase-poc,BFF Team,bff,"Backend-for-Frontend services",push
+polybase-poc,Frontend Engineers,frontend,"Web application development",push
+polybase-poc,Mobile Engineers,mobile,"iOS and Android development",push
+polybase-poc,Platform SRE,platform,"Infrastructure and platform operations",push
+
+# Omnibase-poc (Monorepo) Teams
+omnibase-poc,Data Platform,data-platform,"Database schemas and data infrastructure",push
+omnibase-poc,Backend Engineers,backend,"Backend microservices development",push
+omnibase-poc,BFF Team,bff,"Backend-for-Frontend services",push
+omnibase-poc,Frontend Engineers,frontend,"Web application development",push
+omnibase-poc,Mobile Engineers,mobile,"iOS and Android development",push
+omnibase-poc,Platform SRE,platform,"Infrastructure and platform operations",push

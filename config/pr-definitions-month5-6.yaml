@@ -1,0 +1,1113 @@
+# PR Definitions: Month 5-6 (Advanced Features Phase)
+# Timeline: February-April 2026
+# PRs: 58-95 (38 PRs total)
+# Focus: Microservices patterns, advanced frontend, DevOps/SRE, mobile, security
+
+prs:
+  # ====================
+  # Week 1-2: Microservices Patterns (7 PRs)
+  # ====================
+
+  - id: 58
+    repo: user-service
+    team: backend
+    branch: feature/user/circuit-breaker
+    title: "Implement circuit breaker pattern with Resilience4j"
+    description: |
+      Adds circuit breaker pattern to external service calls:
+      - Resilience4j circuit breaker for auth-service calls
+      - Fallback strategies for degraded service mode
+      - Circuit breaker metrics exposed to Prometheus
+      - Configurable failure thresholds and timeout settings
+      - Health check integration showing circuit state
+
+      Dependencies: Requires basic service-to-service communication from Month 3-4
+    files:
+      - src/main/java/com/polybasepoc/userservice/resilience/CircuitBreakerConfig.java
+      - src/main/java/com/polybasepoc/userservice/client/AuthServiceClient.java
+      - src/main/java/com/polybasepoc/userservice/service/UserServiceImpl.java
+      - src/test/java/com/polybasepoc/userservice/resilience/CircuitBreakerTest.java
+      - src/main/resources/application.yml
+    dependencies: [24]  # Requires protected endpoints with JWT validation
+    complexity: senior-level
+    created: "2026-02-03T09:30:00Z"
+    review_hours: 48
+
+  - id: 59
+    repo: user-service
+    team: backend
+    branch: feature/user/distributed-tracing
+    title: "Add distributed tracing with OpenTelemetry"
+    description: |
+      Implements distributed tracing across microservices:
+      - OpenTelemetry Java agent integration
+      - Automatic span creation for REST endpoints
+      - Custom spans for database operations
+      - Trace context propagation via HTTP headers
+      - Integration with Jaeger backend for visualization
+      - Performance impact analysis (< 5ms overhead)
+
+      Breaking change: Requires OpenTelemetry collector deployment
+    files:
+      - src/main/java/com/polybasepoc/userservice/tracing/TracingConfig.java
+      - src/main/java/com/polybasepoc/userservice/tracing/SpanDecorator.java
+      - src/main/java/com/polybasepoc/userservice/interceptor/TracingInterceptor.java
+      - pom.xml
+      - docker/docker-compose.yml
+    dependencies: [24]
+    complexity: senior-level
+    created: "2026-02-03T14:00:00Z"
+    review_hours: 72
+
+  - id: 60
+    repo: order-service
+    team: backend
+    branch: feature/order/saga-pattern
+    title: "Implement saga pattern for distributed transactions"
+    description: |
+      Replaces two-phase commit with saga pattern:
+      - Orchestration-based saga coordinator
+      - Compensating transactions for rollback scenarios
+      - Order-Payment-Notification coordination flow
+      - Saga state machine with timeout handling
+      - Integration with event bus (Kafka topics)
+      - Idempotency keys for retry safety
+
+      Breaking change: Existing order creation flow deprecated in favor of saga
+    files:
+      - src/main/java/com/polybasepoc/orderservice/saga/OrderSagaOrchestrator.java
+      - src/main/java/com/polybasepoc/orderservice/saga/SagaStep.java
+      - src/main/java/com/polybasepoc/orderservice/saga/CompensationHandler.java
+      - src/main/java/com/polybasepoc/orderservice/saga/SagaStateMachine.java
+      - src/main/java/com/polybasepoc/orderservice/kafka/KafkaProducerConfig.java
+      - src/test/java/com/polybasepoc/orderservice/saga/SagaIntegrationTest.java
+    dependencies: [31, 29]  # Requires order-payment coordination and Stripe integration
+    complexity: senior-level
+    created: "2026-02-05T10:00:00Z"
+    review_hours: 96
+
+  - id: 61
+    repo: order-service
+    team: backend
+    branch: feature/order/event-sourcing
+    title: "Event sourcing for order state changes"
+    description: |
+      Implements event sourcing pattern for order lifecycle:
+      - Event store using PostgreSQL JSONB columns
+      - OrderCreated, OrderPaid, OrderShipped, OrderCancelled events
+      - Event replay for order state reconstruction
+      - Audit trail and temporal queries support
+      - Snapshot mechanism for performance optimization
+      - Event versioning strategy for schema evolution
+
+      Migration: Existing orders migrated to event store
+    files:
+      - src/main/java/com/polybasepoc/orderservice/events/OrderEvent.java
+      - src/main/java/com/polybasepoc/orderservice/events/EventStore.java
+      - src/main/java/com/polybasepoc/orderservice/aggregate/OrderAggregate.java
+      - src/main/java/com/polybasepoc/orderservice/repository/EventStoreRepository.java
+      - src/main/resources/db/migration/V2.0__add_event_store.sql
+      - src/test/java/com/polybasepoc/orderservice/events/EventSourcingTest.java
+    dependencies: [25, 60]  # Requires order state machine and saga pattern
+    complexity: senior-level
+    created: "2026-02-07T09:00:00Z"
+    review_hours: 72
+
+  - id: 62
+    repo: order-service
+    team: backend
+    branch: feature/order/cqrs-pattern
+    title: "CQRS pattern implementation"
+    description: |
+      Separates read and write models using CQRS:
+      - Command model for order mutations (write optimized)
+      - Query model for order retrieval (read optimized)
+      - Asynchronous projection from event store to query DB
+      - Separate REST controllers for commands and queries
+      - Materialized views for complex order aggregations
+      - Eventually consistent read model with sync status
+
+      Performance: 10x faster reads, 2x slower writes (acceptable tradeoff)
+    files:
+      - src/main/java/com/polybasepoc/orderservice/command/OrderCommandService.java
+      - src/main/java/com/polybasepoc/orderservice/query/OrderQueryService.java
+      - src/main/java/com/polybasepoc/orderservice/projection/OrderProjection.java
+      - src/main/java/com/polybasepoc/orderservice/controller/OrderCommandController.java
+      - src/main/java/com/polybasepoc/orderservice/controller/OrderQueryController.java
+      - src/main/resources/db/migration/V2.1__add_query_model.sql
+    dependencies: [61]  # Requires event sourcing
+    complexity: senior-level
+    created: "2026-02-10T10:30:00Z"
+    review_hours: 72
+
+  - id: 63
+    repo: graphql-gateway
+    team: bff
+    branch: feature/gateway/service-mesh
+    title: "Service mesh integration with Istio"
+    description: |
+      Integrates GraphQL gateway with Istio service mesh:
+      - Istio sidecar proxy configuration
+      - mTLS for service-to-service communication
+      - Traffic management with virtual services
+      - Retry policies and timeout configurations
+      - Distributed tracing via Envoy
+      - Circuit breaking at mesh level
+
+      Infrastructure: Requires Kubernetes with Istio installed
+    files:
+      - k8s/istio/gateway-virtualservice.yaml
+      - k8s/istio/destination-rule.yaml
+      - src/config/istio.config.ts
+      - src/middleware/istio-headers.middleware.ts
+      - docker/Dockerfile
+    dependencies: [54]  # Requires GraphQL schema stitching
+    complexity: senior-level
+    created: "2026-02-12T11:00:00Z"
+    review_hours: 72
+
+  - id: 64
+    repo: graphql-gateway
+    team: bff
+    branch: feature/gateway/advanced-rate-limiting
+    title: "Advanced rate limiting and quotas"
+    description: |
+      Implements sophisticated rate limiting strategy:
+      - Token bucket algorithm with Redis backend
+      - Per-user, per-endpoint, and global rate limits
+      - GraphQL complexity analysis for query cost calculation
+      - Adaptive rate limiting based on system load
+      - Rate limit headers in responses (X-RateLimit-*)
+      - Admin API for dynamic quota management
+
+      Configuration: Default 1000 req/min per user, 10000 complexity points/min
+    files:
+      - src/middleware/rate-limiter.middleware.ts
+      - src/services/rate-limit.service.ts
+      - src/utils/query-complexity.ts
+      - src/config/rate-limits.config.ts
+      - src/controllers/admin/rate-limits.controller.ts
+      - tests/integration/rate-limiting.test.ts
+    dependencies: [54, 63]
+    complexity: senior-level
+    created: "2026-02-14T09:30:00Z"
+    review_hours: 48
+
+  # ====================
+  # Week 3-4: Advanced Frontend (6 PRs)
+  # ====================
+
+  - id: 65
+    repo: web-app
+    team: frontend
+    branch: feature/web/redux-state
+    title: "Redux state management implementation"
+    description: |
+      Replaces React Context with Redux for global state:
+      - Redux Toolkit setup with TypeScript
+      - Slices for user, order, cart, and notification state
+      - Async thunks for API calls with loading states
+      - Redux DevTools integration
+      - Optimistic updates with rollback on error
+      - State persistence to localStorage
+
+      Migration: Gradual migration from Context API, both coexist initially
+    files:
+      - src/store/index.ts
+      - src/store/slices/userSlice.ts
+      - src/store/slices/orderSlice.ts
+      - src/store/slices/cartSlice.ts
+      - src/store/middleware/api.middleware.ts
+      - src/hooks/useAppDispatch.ts
+      - src/hooks/useAppSelector.ts
+      - tests/store/userSlice.test.ts
+    dependencies: [37, 38, 39]  # Requires order UI and payment integration
+    complexity: senior-level
+    created: "2026-02-17T10:00:00Z"
+    review_hours: 48
+
+  - id: 66
+    repo: web-app
+    team: frontend
+    branch: feature/web/websocket-notifications
+    title: "WebSocket real-time notifications"
+    description: |
+      Adds real-time updates via WebSocket connection:
+      - WebSocket client with automatic reconnection
+      - Order status updates pushed from server
+      - Toast notifications for real-time events
+      - Connection status indicator in UI
+      - Fallback to polling when WebSocket unavailable
+      - Message queuing during disconnection
+
+      Backend dependency: Requires WebSocket server in web-bff
+    files:
+      - src/services/websocket.service.ts
+      - src/hooks/useWebSocket.ts
+      - src/components/ConnectionStatus.tsx
+      - src/components/NotificationToast.tsx
+      - src/store/slices/notificationSlice.ts
+      - tests/services/websocket.test.ts
+    dependencies: [65]  # Requires Redux for notification state
+    complexity: senior-level
+    created: "2026-02-19T09:00:00Z"
+    review_hours: 48
+
+  - id: 67
+    repo: web-app
+    team: frontend
+    branch: feature/web/pwa-setup
+    title: "Progressive Web App (PWA) setup"
+    description: |
+      Converts web app to Progressive Web App:
+      - Service worker for offline functionality
+      - App manifest for installability
+      - Offline fallback page
+      - Background sync for failed requests
+      - Push notification support (browser)
+      - App icon and splash screens
+      - Cache-first strategy for static assets
+
+      Testing: Lighthouse PWA score > 90
+    files:
+      - public/manifest.json
+      - public/service-worker.js
+      - public/offline.html
+      - src/serviceWorkerRegistration.ts
+      - src/utils/cache-strategies.ts
+      - public/icons/icon-*.png
+      - vite.config.ts
+    dependencies: [66]
+    complexity: senior-level
+    created: "2026-02-21T10:30:00Z"
+    review_hours: 48
+
+  - id: 68
+    repo: web-app
+    team: frontend
+    branch: feature/web/accessibility-enhancements
+    title: "Advanced accessibility (ARIA, keyboard navigation)"
+    description: |
+      Comprehensive accessibility improvements:
+      - Keyboard navigation for all interactive elements
+      - ARIA labels, roles, and live regions
+      - Focus management for modals and dialogs
+      - Screen reader announcements for dynamic content
+      - Skip navigation links
+      - High contrast mode support
+      - Reduced motion preferences respect
+
+      Compliance: WCAG 2.1 Level AA compliance verified
+    files:
+      - src/components/AccessibleModal.tsx
+      - src/components/SkipNav.tsx
+      - src/hooks/useFocusTrap.ts
+      - src/hooks/useAnnouncer.ts
+      - src/utils/aria-helpers.ts
+      - src/styles/accessibility.css
+      - tests/accessibility/a11y.test.ts
+    dependencies: [39, 55]  # Requires existing UI components
+    complexity: senior-level
+    created: "2026-02-24T09:00:00Z"
+    review_hours: 48
+
+  - id: 69
+    repo: component-library
+    team: frontend
+    branch: feature/components/a11y-first
+    title: "Accessibility-first components (a11y)"
+    description: |
+      Redesigns core components with accessibility-first approach:
+      - AccessibleButton with proper focus styles
+      - AccessibleForm with field error announcements
+      - AccessibleTable with sortable headers
+      - AccessibleTabs with keyboard support
+      - AccessibleTooltip with proper ARIA
+      - AccessibleDropdown with combobox pattern
+
+      All components tested with NVDA and VoiceOver
+    files:
+      - src/components/AccessibleButton/AccessibleButton.tsx
+      - src/components/AccessibleForm/AccessibleForm.tsx
+      - src/components/AccessibleTable/AccessibleTable.tsx
+      - src/components/AccessibleTabs/AccessibleTabs.tsx
+      - src/components/AccessibleTooltip/AccessibleTooltip.tsx
+      - src/components/AccessibleDropdown/AccessibleDropdown.tsx
+      - tests/a11y/components.test.ts
+    dependencies: [40]  # Requires DataTable component
+    complexity: senior-level
+    created: "2026-02-26T10:00:00Z"
+    review_hours: 48
+
+  - id: 70
+    repo: component-library
+    team: frontend
+    branch: feature/components/testing-library
+    title: "Component testing with React Testing Library"
+    description: |
+      Comprehensive component test suite:
+      - React Testing Library setup with TypeScript
+      - Unit tests for all components (80%+ coverage)
+      - Integration tests for component interactions
+      - Visual regression tests with Chromatic
+      - Accessibility tests with jest-axe
+      - Mock service worker for API mocking
+
+      CI/CD: Tests run on every PR with coverage reporting
+    files:
+      - tests/setup.ts
+      - tests/components/Button.test.tsx
+      - tests/components/Form.test.tsx
+      - tests/components/DataTable.test.tsx
+      - tests/utils/test-utils.tsx
+      - tests/mocks/handlers.ts
+      - .github/workflows/component-tests.yml
+    dependencies: [69]
+    complexity: senior-level
+    created: "2026-02-28T09:30:00Z"
+    review_hours: 48
+
+  # ====================
+  # Week 5-6: DevOps/SRE (7 PRs)
+  # ====================
+
+  - id: 71
+    repo: terraform-aws-infrastructure
+    team: platform
+    branch: feature/prod/eks-cluster
+    title: "Kubernetes cluster with Amazon EKS"
+    description: |
+      Provisions production-grade EKS cluster:
+      - EKS cluster with managed node groups
+      - VPC with public and private subnets
+      - IAM roles for service accounts (IRSA)
+      - Cluster autoscaler configuration
+      - Pod security policies
+      - EKS add-ons (VPC CNI, CoreDNS, kube-proxy)
+      - Multi-AZ setup for high availability
+
+      Cost: ~$200/month for 3 t3.medium nodes
+    files:
+      - modules/eks/main.tf
+      - modules/eks/variables.tf
+      - modules/eks/outputs.tf
+      - modules/vpc/main.tf
+      - modules/iam/eks-roles.tf
+      - environments/production/eks.tf
+      - environments/production/variables.tfvars
+    dependencies: [52]  # Requires RDS and Redis infrastructure
+    complexity: senior-level
+    created: "2026-03-03T10:00:00Z"
+    review_hours: 96
+
+  - id: 72
+    repo: terraform-aws-infrastructure
+    team: platform
+    branch: feature/prod/helm-charts
+    title: "Helm charts for all services"
+    description: |
+      Creates Helm charts for service deployment:
+      - Chart templates for Java services (user, auth, order, payment, notification)
+      - Chart templates for Node services (web-bff, mobile-bff, graphql-gateway)
+      - Chart templates for React apps (web-app)
+      - Shared values for common configurations
+      - Environment-specific overrides (dev, staging, prod)
+      - Ingress configurations with ALB controller
+      - ConfigMaps and Secrets management
+
+      Deployment: Supports blue-green and canary deployments
+    files:
+      - helm/java-service/Chart.yaml
+      - helm/java-service/templates/deployment.yaml
+      - helm/java-service/templates/service.yaml
+      - helm/java-service/templates/ingress.yaml
+      - helm/node-service/Chart.yaml
+      - helm/node-service/templates/deployment.yaml
+      - helm/react-app/Chart.yaml
+      - helm/values/production.yaml
+    dependencies: [71]  # Requires EKS cluster
+    complexity: senior-level
+    created: "2026-03-05T11:00:00Z"
+    review_hours: 72
+
+  - id: 73
+    repo: terraform-aws-infrastructure
+    team: platform
+    branch: feature/prod/argocd-gitops
+    title: "ArgoCD GitOps setup"
+    description: |
+      Implements GitOps deployment workflow:
+      - ArgoCD installation on EKS cluster
+      - Application manifests for all services
+      - Automated sync from Git repositories
+      - Multi-environment support (dev, staging, prod)
+      - RBAC for team-specific access
+      - Slack notifications for deployment events
+      - Automated rollback on health check failures
+
+      Deployment frequency: Continuous deployment to dev, manual promotion to prod
+    files:
+      - argocd/install.yaml
+      - argocd/applications/user-service.yaml
+      - argocd/applications/auth-service.yaml
+      - argocd/applications/order-service.yaml
+      - argocd/projects/backend-services.yaml
+      - argocd/projects/bff-services.yaml
+      - argocd/notifications/slack.yaml
+    dependencies: [72]  # Requires Helm charts
+    complexity: senior-level
+    created: "2026-03-07T09:30:00Z"
+    review_hours: 72
+
+  - id: 74
+    repo: prometheus-alerts
+    team: platform
+    branch: feature/prod/chaos-engineering
+    title: "Chaos engineering test scenarios"
+    description: |
+      Implements chaos engineering experiments:
+      - Chaos Mesh installation on EKS
+      - Pod failure injection experiments
+      - Network latency injection
+      - CPU and memory stress tests
+      - Service dependency failure scenarios
+      - Automated chaos experiments in staging
+      - Chaos dashboard for experiment monitoring
+
+      Schedule: Weekly automated chaos tests in staging environment
+    files:
+      - chaos/chaos-mesh-install.yaml
+      - chaos/experiments/pod-kill.yaml
+      - chaos/experiments/network-latency.yaml
+      - chaos/experiments/cpu-stress.yaml
+      - chaos/experiments/service-failure.yaml
+      - chaos/schedule.yaml
+      - chaos/dashboard.json
+    dependencies: [71, 73]  # Requires EKS and ArgoCD
+    complexity: senior-level
+    created: "2026-03-10T10:00:00Z"
+    review_hours: 72
+
+  - id: 75
+    repo: grafana-dashboards
+    team: platform
+    branch: feature/prod/distributed-tracing-dashboard
+    title: "Distributed tracing dashboard with Jaeger"
+    description: |
+      Creates comprehensive tracing dashboard:
+      - Jaeger integration with Grafana
+      - Service dependency visualization
+      - Trace latency analysis by endpoint
+      - Error rate tracking per service
+      - Performance bottleneck identification
+      - Trace comparison for performance regression detection
+      - Alert on abnormal trace latencies
+
+      Data source: Jaeger traces from OpenTelemetry
+    files:
+      - dashboards/distributed-tracing.json
+      - datasources/jaeger.yaml
+      - provisioning/dashboards.yaml
+      - alerts/trace-latency.yaml
+    dependencies: [59, 49]  # Requires distributed tracing and service metrics
+    complexity: senior-level
+    created: "2026-03-12T09:00:00Z"
+    review_hours: 48
+
+  - id: 76
+    repo: grafana-dashboards
+    team: platform
+    branch: feature/prod/service-mesh-observability
+    title: "Service mesh observability with Istio"
+    description: |
+      Adds service mesh monitoring dashboards:
+      - Istio service graph visualization
+      - Request success rate per service
+      - Latency percentiles (p50, p95, p99) per route
+      - Circuit breaker status monitoring
+      - mTLS certificate expiry alerts
+      - Traffic splitting visualization for canary deployments
+
+      Integration: Prometheus scrapes Istio Envoy metrics
+    files:
+      - dashboards/istio-service-mesh.json
+      - dashboards/istio-performance.json
+      - dashboards/istio-security.json
+      - alerts/istio-alerts.yaml
+    dependencies: [63, 75]  # Requires service mesh and tracing dashboard
+    complexity: senior-level
+    created: "2026-03-14T10:30:00Z"
+    review_hours: 48
+
+  - id: 77
+    repo: prometheus-alerts
+    team: platform
+    branch: feature/prod/auto-scaling-policies
+    title: "Horizontal Pod Autoscaler (HPA) policies"
+    description: |
+      Configures automatic scaling for all services:
+      - HPA based on CPU utilization (target 70%)
+      - HPA based on memory utilization (target 80%)
+      - HPA based on custom metrics (request rate, queue depth)
+      - Scale-down stabilization window (5 minutes)
+      - Min/max replica configurations per service
+      - Vertical Pod Autoscaler for right-sizing
+
+      Scaling behavior: Gradual scale-up, conservative scale-down
+    files:
+      - k8s/hpa/user-service-hpa.yaml
+      - k8s/hpa/auth-service-hpa.yaml
+      - k8s/hpa/order-service-hpa.yaml
+      - k8s/hpa/payment-service-hpa.yaml
+      - k8s/vpa/vpa-recommender.yaml
+      - monitoring/scaling-dashboard.json
+    dependencies: [71, 72]  # Requires EKS and Helm charts
+    complexity: senior-level
+    created: "2026-03-17T09:00:00Z"
+    review_hours: 48
+
+  # ====================
+  # Week 7: Mobile (3 PRs)
+  # ====================
+
+  - id: 78
+    repo: ios-app
+    team: mobile
+    branch: feature/ios/push-notifications
+    title: "iOS push notifications with APNs"
+    description: |
+      Implements iOS push notification support:
+      - APNs certificate and provisioning setup
+      - Device token registration with backend
+      - Notification payload handling (silent and visible)
+      - Deep linking from notifications to order details
+      - Notification permission request flow
+      - Badge count management
+      - Rich notifications with images
+
+      Backend dependency: Notification service must support APNs
+    files:
+      - ios/NotificationService/NotificationManager.swift
+      - ios/NotificationService/APNsTokenHandler.swift
+      - ios/DeepLink/DeepLinkRouter.swift
+      - ios/Views/NotificationPermissionView.swift
+      - ios/AppDelegate.swift
+      - ios/Info.plist
+    dependencies: [56]  # Requires iOS app foundation
+    complexity: mid-level
+    created: "2026-03-19T10:00:00Z"
+    review_hours: 24
+
+  - id: 79
+    repo: android-app
+    team: mobile
+    branch: feature/android/push-notifications
+    title: "Android push notifications with FCM"
+    description: |
+      Implements Android push notification support:
+      - Firebase Cloud Messaging integration
+      - Device token registration with backend
+      - Notification channel setup (orders, promotions, alerts)
+      - Notification payload handling
+      - Deep linking from notifications
+      - Notification permission request (Android 13+)
+      - Custom notification styles
+
+      Backend dependency: Notification service must support FCM
+    files:
+      - app/src/main/java/com/polybasepoc/android/services/FirebaseMessagingService.kt
+      - app/src/main/java/com/polybasepoc/android/services/NotificationManager.kt
+      - app/src/main/java/com/polybasepoc/android/deeplink/DeepLinkRouter.kt
+      - app/src/main/java/com/polybasepoc/android/ui/NotificationPermissionActivity.kt
+      - app/google-services.json
+      - app/src/main/AndroidManifest.xml
+    dependencies: [57]  # Requires Android app foundation
+    complexity: mid-level
+    created: "2026-03-19T10:30:00Z"
+    review_hours: 24
+
+  - id: 80
+    repo: mobile-shared
+    team: mobile
+    branch: feature/mobile/offline-first
+    title: "Mobile offline-first architecture"
+    description: |
+      Implements offline-first data synchronization:
+      - SQLite local database for order and user data
+      - Sync engine for bidirectional data sync
+      - Conflict resolution strategy (last-write-wins)
+      - Offline queue for mutations
+      - Background sync when network available
+      - Optimistic updates with rollback on conflict
+      - Sync status indicators in UI
+
+      Performance: App fully functional without network
+    files:
+      - src/database/schema.ts
+      - src/sync/SyncEngine.ts
+      - src/sync/ConflictResolver.ts
+      - src/sync/OfflineQueue.ts
+      - src/hooks/useOfflineSync.ts
+      - src/utils/network-status.ts
+      - tests/sync/sync-engine.test.ts
+    dependencies: [78, 79]
+    complexity: senior-level
+    created: "2026-03-21T09:00:00Z"
+    review_hours: 72
+
+  # ====================
+  # Week 8: Security & Performance (5 PRs)
+  # ====================
+
+  - id: 81
+    repo: user-service
+    team: backend
+    branch: feature/user/sql-injection-audit
+    title: "SQL injection prevention audit and fixes"
+    description: |
+      Comprehensive SQL injection security audit:
+      - Replace all string concatenation with parameterized queries
+      - JPA query validation and hardening
+      - Input validation and sanitization layer
+      - Database user permission tightening (least privilege)
+      - SQL injection test suite
+      - Static analysis with FindBugs/SpotBugs
+
+      Security: Zero SQL injection vulnerabilities after fix
+    files:
+      - src/main/java/com/polybasepoc/userservice/repository/UserRepository.java
+      - src/main/java/com/polybasepoc/userservice/validation/InputSanitizer.java
+      - src/main/java/com/polybasepoc/userservice/security/SqlInjectionValidator.java
+      - src/test/java/com/polybasepoc/userservice/security/SqlInjectionTest.java
+      - pom.xml
+    dependencies: [16]  # Requires integration tests for user API
+    complexity: senior-level
+    created: "2026-03-24T09:30:00Z"
+    review_hours: 48
+
+  - id: 82
+    repo: order-service
+    team: backend
+    branch: feature/order/query-optimization
+    title: "Database query optimization and indexing"
+    description: |
+      Performance optimization for order queries:
+      - Add composite indexes for common query patterns
+      - Optimize N+1 query problems with eager loading
+      - Query result caching with Redis (5-minute TTL)
+      - Pagination for large result sets
+      - Database query profiling and slow query log analysis
+      - Connection pool tuning
+
+      Performance: 80% reduction in average query time (450ms -> 90ms)
+    files:
+      - src/main/resources/db/migration/V3.0__optimize_indexes.sql
+      - src/main/java/com/polybasepoc/orderservice/repository/OrderRepository.java
+      - src/main/java/com/polybasepoc/orderservice/config/CacheConfig.java
+      - src/main/java/com/polybasepoc/orderservice/service/OrderQueryService.java
+      - src/main/resources/application.yml
+    dependencies: [27, 62]  # Requires order history and CQRS pattern
+    complexity: senior-level
+    created: "2026-03-26T10:00:00Z"
+    review_hours: 48
+
+  - id: 83
+    repo: order-service
+    team: backend
+    branch: feature/order/response-caching
+    title: "API response caching with Redis"
+    description: |
+      Implements multi-level caching strategy:
+      - Redis cache for GET endpoints (1-5 minute TTL)
+      - Cache invalidation on order state changes
+      - Cache key strategy with user and order IDs
+      - Cache warming for popular queries
+      - Cache hit rate monitoring
+      - Fallback to database on cache miss
+
+      Performance: 60% cache hit rate, 95% faster responses on cache hit
+    files:
+      - src/main/java/com/polybasepoc/orderservice/cache/CacheService.java
+      - src/main/java/com/polybasepoc/orderservice/cache/CacheKeyGenerator.java
+      - src/main/java/com/polybasepoc/orderservice/cache/CacheInvalidator.java
+      - src/main/java/com/polybasepoc/orderservice/aspect/CacheableAspect.java
+      - src/main/resources/redis-config.yml
+    dependencies: [82]  # Requires query optimization
+    complexity: senior-level
+    created: "2026-03-28T09:00:00Z"
+    review_hours: 48
+
+  - id: 84
+    repo: web-bff
+    team: bff
+    branch: feature/bff/request-batching
+    title: "Request batching and GraphQL data loader"
+    description: |
+      Optimizes backend calls with request batching:
+      - DataLoader implementation for batch requests
+      - Request coalescing (dedupe identical requests)
+      - Batch window configuration (10ms)
+      - Caching layer with per-request cache
+      - Metrics for batch effectiveness
+      - Timeout handling for batch requests
+
+      Performance: Reduces backend calls by 70% for typical page loads
+    files:
+      - src/services/data-loader.service.ts
+      - src/middleware/batching.middleware.ts
+      - src/utils/request-cache.ts
+      - src/config/batching.config.ts
+      - tests/integration/batching.test.ts
+    dependencies: [48]  # Requires existing BFF request handling
+    complexity: senior-level
+    created: "2026-03-31T10:30:00Z"
+    review_hours: 48
+
+  - id: 85
+    repo: auth-service
+    team: backend
+    branch: feature/auth/security-headers
+    title: "Security headers and CORS hardening"
+    description: |
+      Hardens security with comprehensive HTTP headers:
+      - Content-Security-Policy with strict nonce-based policy
+      - X-Frame-Options DENY to prevent clickjacking
+      - Strict-Transport-Security for HTTPS enforcement
+      - X-Content-Type-Options nosniff
+      - CORS configuration with origin whitelist
+      - Rate limiting per IP address
+      - Request ID tracking for audit trail
+
+      Compliance: OWASP security best practices implemented
+    files:
+      - src/main/java/com/polybasepoc/authservice/security/SecurityHeadersFilter.java
+      - src/main/java/com/polybasepoc/authservice/security/CorsConfig.java
+      - src/main/java/com/polybasepoc/authservice/security/RateLimitFilter.java
+      - src/main/resources/application-security.yml
+      - src/test/java/com/polybasepoc/authservice/security/SecurityHeadersTest.java
+    dependencies: [45]  # Requires existing rate limiting with Redis
+    complexity: senior-level
+    created: "2026-04-02T09:00:00Z"
+    review_hours: 48
+
+  # ====================
+  # Week 9-10: Final Infrastructure (5 PRs)
+  # ====================
+
+  - id: 86
+    repo: terraform-aws-infrastructure
+    team: platform
+    branch: feature/prod/production-deployment
+    title: "Production Kubernetes deployment configuration"
+    description: |
+      Full production deployment setup:
+      - Production EKS cluster with dedicated VPC
+      - Multi-AZ deployment for high availability
+      - Pod disruption budgets for zero-downtime updates
+      - Network policies for pod-to-pod security
+      - Resource quotas per namespace
+      - Priority classes for critical services
+      - Pod anti-affinity rules for resilience
+
+      SLA target: 99.9% uptime (< 45 minutes downtime/month)
+    files:
+      - environments/production/eks-production.tf
+      - environments/production/network-policies.yaml
+      - environments/production/resource-quotas.yaml
+      - environments/production/pod-disruption-budgets.yaml
+      - environments/production/priority-classes.yaml
+    dependencies: [71, 72, 73]  # Requires EKS, Helm, and ArgoCD
+    complexity: senior-level
+    created: "2026-04-04T10:00:00Z"
+    review_hours: 96
+
+  - id: 87
+    repo: terraform-aws-infrastructure
+    team: platform
+    branch: feature/prod/auto-scaling-infra
+    title: "Infrastructure auto-scaling policies"
+    description: |
+      Configures infrastructure-level auto-scaling:
+      - EKS node group auto-scaling (3-10 nodes)
+      - Cluster autoscaler with priority-based scheduling
+      - RDS read replica auto-scaling based on CPU
+      - ElastiCache Redis cluster auto-scaling
+      - CloudWatch alarms for scaling events
+      - Cost optimization with spot instances
+
+      Cost: 40% cost reduction with spot instances, same performance
+    files:
+      - modules/eks/autoscaling.tf
+      - modules/rds/read-replica-autoscaling.tf
+      - modules/elasticache/cluster-autoscaling.tf
+      - monitoring/scaling-alarms.tf
+      - scripts/node-draining.sh
+    dependencies: [86]  # Requires production deployment
+    complexity: senior-level
+    created: "2026-04-07T09:30:00Z"
+    review_hours: 72
+
+  - id: 88
+    repo: terraform-aws-infrastructure
+    team: platform
+    branch: feature/prod/disaster-recovery
+    title: "Disaster recovery procedures and automation"
+    description: |
+      Implements comprehensive DR strategy:
+      - Cross-region RDS snapshot replication
+      - S3 bucket versioning and cross-region replication
+      - EKS cluster backup with Velero
+      - Infrastructure as Code for rapid cluster recreation
+      - Automated failover testing (quarterly)
+      - DR runbooks and recovery procedures
+      - RTO: 4 hours, RPO: 1 hour
+
+      Testing: DR drill executed successfully in staging
+    files:
+      - disaster-recovery/rds-snapshot-replication.tf
+      - disaster-recovery/s3-replication.tf
+      - disaster-recovery/velero-backup.yaml
+      - disaster-recovery/failover-script.sh
+      - disaster-recovery/DR_RUNBOOK.md
+      - disaster-recovery/recovery-test.sh
+    dependencies: [86, 87]
+    complexity: senior-level
+    created: "2026-04-09T10:00:00Z"
+    review_hours: 96
+
+  - id: 89
+    repo: terraform-aws-infrastructure
+    team: platform
+    branch: feature/prod/cicd-pipeline-deployment
+    title: "Complete CI/CD pipeline with deployment automation"
+    description: |
+      End-to-end CI/CD pipeline for all services:
+      - GitHub Actions workflows for build, test, deploy
+      - Docker image building and pushing to ECR
+      - Helm chart version management
+      - ArgoCD application sync trigger
+      - Automated smoke tests post-deployment
+      - Deployment approval gates for production
+      - Rollback automation on health check failures
+
+      Deployment frequency: 10+ deploys/day to dev, 2-3/day to prod
+    files:
+      - .github/workflows/java-service-cicd.yml
+      - .github/workflows/node-service-cicd.yml
+      - .github/workflows/react-app-cicd.yml
+      - scripts/deploy.sh
+      - scripts/smoke-tests.sh
+      - scripts/rollback.sh
+      - argocd/sync-trigger.sh
+    dependencies: [73, 86]  # Requires ArgoCD and production deployment
+    complexity: senior-level
+    created: "2026-04-11T09:00:00Z"
+    review_hours: 72
+
+  - id: 90
+    repo: db-migrations
+    team: data-platform
+    branch: feature/data/migration-automation
+    title: "Automated database migration with Liquibase"
+    description: |
+      Automates database schema migrations:
+      - Liquibase changeset organization by version
+      - Automated migration execution in CI/CD
+      - Rollback scripts for all migrations
+      - Database migration testing in staging
+      - Migration dry-run validation
+      - Lock mechanism to prevent concurrent migrations
+      - Migration status dashboard
+
+      Safety: All migrations tested in staging before production
+    files:
+      - liquibase/changelog-master.xml
+      - liquibase/changesets/v3.0/orders-optimization.xml
+      - liquibase/changesets/v3.0/event-store.xml
+      - scripts/migrate.sh
+      - scripts/rollback.sh
+      - scripts/validate-migration.sh
+      - .github/workflows/db-migration.yml
+    dependencies: [61, 82]  # Requires event store and query optimization migrations
+    complexity: senior-level
+    created: "2026-04-14T10:30:00Z"
+    review_hours: 48
+
+  # ====================
+  # Week 11: Monitoring & Final Polish (2 PRs)
+  # ====================
+
+  - id: 91
+    repo: grafana-dashboards
+    team: platform
+    branch: feature/prod/comprehensive-dashboard
+    title: "Comprehensive production monitoring dashboards"
+    description: |
+      Creates unified monitoring dashboard for production:
+      - Executive dashboard with SLA metrics
+      - Service health dashboard with dependency map
+      - Business metrics dashboard (orders, revenue, users)
+      - Infrastructure dashboard (CPU, memory, disk, network)
+      - Cost dashboard with spend breakdown
+      - Security dashboard with failed auth attempts
+      - Custom dashboard builder for teams
+
+      Accessibility: Dashboards shared with all stakeholders
+    files:
+      - dashboards/executive-overview.json
+      - dashboards/service-health.json
+      - dashboards/business-metrics.json
+      - dashboards/infrastructure.json
+      - dashboards/cost-analysis.json
+      - dashboards/security-monitoring.json
+      - provisioning/dashboard-config.yaml
+    dependencies: [75, 76, 49]  # Requires existing monitoring setup
+    complexity: senior-level
+    created: "2026-04-16T09:00:00Z"
+    review_hours: 48
+
+  - id: 92
+    repo: prometheus-alerts
+    team: platform
+    branch: feature/prod/critical-alerts
+    title: "Critical production alert rules"
+    description: |
+      Defines comprehensive alerting strategy:
+      - Service down alerts (PagerDuty integration)
+      - High error rate alerts (> 5% error rate)
+      - High latency alerts (p99 > 2 seconds)
+      - Database connection pool exhaustion
+      - Disk space alerts (< 20% free)
+      - Certificate expiry alerts (< 30 days)
+      - Anomaly detection for traffic patterns
+
+      On-call: Alerts routed to on-call engineer via PagerDuty
+    files:
+      - alerts/service-health.yaml
+      - alerts/error-rates.yaml
+      - alerts/latency.yaml
+      - alerts/database.yaml
+      - alerts/infrastructure.yaml
+      - alerts/security.yaml
+      - integration/pagerduty-config.yaml
+    dependencies: [91]  # Requires comprehensive dashboards
+    complexity: mid-level
+    created: "2026-04-18T10:00:00Z"
+    review_hours: 48
+
+  # ====================
+  # Week 12: Backend Service Enhancements (3 PRs)
+  # ====================
+
+  - id: 93
+    repo: payment-service
+    team: backend
+    branch: feature/payment/webhook-retry
+    title: "Webhook retry mechanism with exponential backoff"
+    description: |
+      Improves webhook reliability with retry logic:
+      - Exponential backoff retry strategy (1s, 2s, 4s, 8s, 16s)
+      - Dead letter queue for failed webhooks
+      - Webhook status tracking and monitoring
+      - Idempotency key validation
+      - Webhook signature verification
+      - Admin API for manual webhook replay
+
+      Reliability: 99.9% webhook delivery success rate
+    files:
+      - src/main/java/com/polybasepoc/paymentservice/webhook/WebhookRetryService.java
+      - src/main/java/com/polybasepoc/paymentservice/webhook/ExponentialBackoff.java
+      - src/main/java/com/polybasepoc/paymentservice/webhook/DeadLetterQueue.java
+      - src/main/java/com/polybasepoc/paymentservice/webhook/WebhookVerifier.java
+      - src/test/java/com/polybasepoc/paymentservice/webhook/RetryTest.java
+    dependencies: [30]  # Requires webhook handling
+    complexity: senior-level
+    created: "2026-04-21T09:30:00Z"
+    review_hours: 48
+
+  - id: 94
+    repo: notification-service
+    team: backend
+    branch: feature/notification/template-engine
+    title: "Advanced notification template engine"
+    description: |
+      Implements flexible notification templating:
+      - Handlebars template engine for email and SMS
+      - Multi-language support (i18n) for notifications
+      - Template versioning and A/B testing
+      - Dynamic content injection (user name, order details)
+      - Template preview and testing interface
+      - Template analytics (open rate, click rate)
+
+      Templates: 15 notification types with 3 language variants each
+    files:
+      - src/main/java/com/polybasepoc/notificationservice/template/TemplateEngine.java
+      - src/main/java/com/polybasepoc/notificationservice/template/TemplateVersioning.java
+      - src/main/java/com/polybasepoc/notificationservice/i18n/LocalizationService.java
+      - src/main/resources/templates/email/order-confirmation.hbs
+      - src/main/resources/templates/sms/order-shipped.hbs
+      - src/test/java/com/polybasepoc/notificationservice/template/TemplateTest.java
+    dependencies: [34]  # Requires order notification templates
+    complexity: senior-level
+    created: "2026-04-23T10:00:00Z"
+    review_hours: 48
+
+  - id: 95
+    repo: notification-service
+    team: backend
+    branch: feature/notification/push-integration
+    title: "Push notification integration (APNs and FCM)"
+    description: |
+      Adds push notification delivery:
+      - APNs integration for iOS notifications
+      - FCM integration for Android notifications
+      - Device token management and registration
+      - Notification scheduling and batching
+      - Rich push notifications with images
+      - Push notification analytics
+      - Unsubscribe management
+
+      Backend support for mobile push notifications (PRs #78 and #79)
+    files:
+      - src/main/java/com/polybasepoc/notificationservice/push/APNsService.java
+      - src/main/java/com/polybasepoc/notificationservice/push/FCMService.java
+      - src/main/java/com/polybasepoc/notificationservice/push/DeviceTokenRepository.java
+      - src/main/java/com/polybasepoc/notificationservice/push/PushScheduler.java
+      - src/main/resources/apns-config.yml
+      - src/main/resources/fcm-config.yml
+    dependencies: [94, 78, 79]  # Requires template engine and mobile apps
+    complexity: senior-level
+    created: "2026-04-25T09:00:00Z"
+    review_hours: 48
+
+# Summary Statistics for Month 5-6
+# ---------------------------------
+# Total PRs: 38 (PR #58 - PR #95)
+# Date range: February 3, 2026 - April 25, 2026
+#
+# By Team:
+# - Backend: 11 PRs (user-service: 3, order-service: 5, payment-service: 1, notification-service: 2)
+# - BFF: 3 PRs (graphql-gateway: 2, web-bff: 1)
+# - Frontend: 6 PRs (web-app: 4, component-library: 2)
+# - Platform: 15 PRs (terraform: 6, grafana: 3, prometheus: 3, db-migrations: 1, various infra: 2)
+# - Mobile: 3 PRs (ios-app: 1, android-app: 1, mobile-shared: 1)
+#
+# By Complexity:
+# - Senior-level: 33 PRs (87%)
+# - Mid-level: 5 PRs (13%)
+#
+# Review Hours:
+# - 24 hours: 2 PRs (simple mobile PRs)
+# - 48 hours: 21 PRs (standard senior-level)
+# - 72 hours: 10 PRs (complex architectural)
+# - 96 hours: 5 PRs (high-impact production changes)
+#
+# Key Features:
+# - 7 Microservices patterns (circuit breaker, tracing, saga, event sourcing, CQRS, service mesh, rate limiting)
+# - 6 Advanced frontend (Redux, WebSocket, PWA, accessibility, a11y components, testing)
+# - 7 DevOps/SRE (EKS, Helm, ArgoCD, chaos engineering, tracing dashboard, service mesh observability, HPA)
+# - 3 Mobile (iOS push, Android push, offline-first)
+# - 5 Security & performance (SQL injection audit, query optimization, API caching, request batching, security headers)
+# - 5 Final infrastructure (production K8s, auto-scaling, DR, CI/CD, DB migrations)
+# - 2 Monitoring (comprehensive dashboards, critical alerts)
+# - 3 Backend enhancements (webhook retry, template engine, push integration)

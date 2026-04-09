@@ -1,0 +1,185 @@
+import { defineConfig, loadEnv } from 'vite';
+import react from '@vitejs/plugin-react';
+import path from 'path';
+
+/**
+ * Vite configuration for React/TypeScript application
+ *
+ * @see https://vitejs.dev/config/
+ */
+export default defineConfig(({ mode }) => {
+  // Load env file based on `mode` in the current working directory.
+  const env = loadEnv(mode, process.cwd(), '');
+
+  return {
+    // Plugins
+    plugins: [
+      react({
+        // Enable Fast Refresh
+        fastRefresh: true,
+        // Babel configuration for React
+        babel: {
+          plugins: [
+            // Add any additional Babel plugins here
+          ],
+        },
+      }),
+    ],
+
+    // Path aliases
+    resolve: {
+      alias: {
+        '@': path.resolve(__dirname, './src'),
+        '@components': path.resolve(__dirname, './src/components'),
+        '@pages': path.resolve(__dirname, './src/pages'),
+        '@hooks': path.resolve(__dirname, './src/hooks'),
+        '@utils': path.resolve(__dirname, './src/utils'),
+        '@services': path.resolve(__dirname, './src/services'),
+        '@types': path.resolve(__dirname, './src/types'),
+        '@styles': path.resolve(__dirname, './src/styles'),
+        '@assets': path.resolve(__dirname, './src/assets'),
+        '@contexts': path.resolve(__dirname, './src/contexts'),
+        '@constants': path.resolve(__dirname, './src/constants'),
+      },
+    },
+
+    // Development server configuration
+    server: {
+      port: parseInt(env.VITE_PORT) || 3000,
+      host: true,
+      strictPort: false,
+      open: true,
+      cors: true,
+      // Proxy configuration for API requests
+      proxy: {
+        '/api': {
+          target: env.VITE_API_URL || 'http://localhost:8000',
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api/, ''),
+          secure: false,
+        },
+      },
+      // HMR configuration
+      hmr: {
+        overlay: true,
+      },
+    },
+
+    // Preview server configuration
+    preview: {
+      port: parseInt(env.VITE_PREVIEW_PORT) || 4173,
+      host: true,
+      strictPort: false,
+      open: true,
+    },
+
+    // Build configuration
+    build: {
+      outDir: 'dist',
+      assetsDir: 'assets',
+      sourcemap: mode === 'development',
+      minify: mode === 'production' ? 'terser' : false,
+      target: 'esnext',
+      // Rollup options
+      rollupOptions: {
+        output: {
+          // Manual chunks for better code splitting
+          manualChunks: {
+            // Vendor chunks
+            'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+            'ui-vendor': ['styled-components', '@emotion/react'],
+            'data-vendor': ['@tanstack/react-query', 'axios'],
+            'form-vendor': ['react-hook-form', 'zod', '@hookform/resolvers'],
+          },
+          // Asset file naming
+          assetFileNames: (assetInfo) => {
+            const info = assetInfo.name.split('.');
+            const ext = info[info.length - 1];
+            if (/png|jpe?g|svg|gif|tiff|bmp|ico/i.test(ext)) {
+              return `assets/images/[name]-[hash][extname]`;
+            } else if (/woff|woff2|eot|ttf|otf/i.test(ext)) {
+              return `assets/fonts/[name]-[hash][extname]`;
+            }
+            return `assets/[name]-[hash][extname]`;
+          },
+          // Chunk file naming
+          chunkFileNames: 'assets/js/[name]-[hash].js',
+          entryFileNames: 'assets/js/[name]-[hash].js',
+        },
+      },
+      // Terser options for minification
+      terserOptions: {
+        compress: {
+          drop_console: mode === 'production',
+          drop_debugger: mode === 'production',
+        },
+      },
+      // Chunk size warning limit
+      chunkSizeWarningLimit: 1000,
+      // CSS code splitting
+      cssCodeSplit: true,
+    },
+
+    // CSS configuration
+    css: {
+      modules: {
+        localsConvention: 'camelCase',
+      },
+      preprocessorOptions: {
+        scss: {
+          additionalData: `@import "@/styles/variables.scss";`,
+        },
+      },
+      devSourcemap: mode === 'development',
+    },
+
+    // Optimization
+    optimizeDeps: {
+      include: [
+        'react',
+        'react-dom',
+        'react-router-dom',
+        '@tanstack/react-query',
+        'axios',
+      ],
+      exclude: ['@vite/client', '@vite/env'],
+    },
+
+    // Environment variables
+    define: {
+      __APP_VERSION__: JSON.stringify(process.env.npm_package_version),
+      __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
+    },
+
+    // Enable JSON import
+    json: {
+      stringify: false,
+    },
+
+    // ESBuild configuration
+    esbuild: {
+      logOverride: { 'this-is-undefined-in-esm': 'silent' },
+      jsxInject: `import React from 'react'`,
+      jsxFactory: 'React.createElement',
+      jsxFragment: 'React.Fragment',
+    },
+
+    // Test configuration (if using Vitest)
+    test: {
+      globals: true,
+      environment: 'jsdom',
+      setupFiles: './src/test/setup.ts',
+      css: true,
+      coverage: {
+        provider: 'v8',
+        reporter: ['text', 'json', 'html'],
+        exclude: [
+          'node_modules/',
+          'src/test/',
+          '**/*.test.{ts,tsx}',
+          '**/*.spec.{ts,tsx}',
+        ],
+      },
+    },
+  };
+});

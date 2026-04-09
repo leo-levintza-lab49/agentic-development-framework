@@ -1,0 +1,288 @@
+server:
+  port: {{PORT}}
+  servlet:
+    context-path: /api
+  compression:
+    enabled: true
+    mime-types: text/html,text/xml,text/plain,text/css,text/javascript,application/javascript,application/json
+  error:
+    include-message: always
+    include-binding-errors: always
+    include-stacktrace: on_param
+    include-exception: false
+
+spring:
+  application:
+    name: {{SERVICE_NAME}}
+
+  # Database Configuration
+  datasource:
+    url: jdbc:postgresql://{{DB_HOST}}:{{DB_PORT}}/{{DB_NAME}}
+    username: {{DB_USERNAME}}
+    password: {{DB_PASSWORD}}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      connection-timeout: 20000
+      maximum-pool-size: 10
+      minimum-idle: 5
+      idle-timeout: 300000
+      max-lifetime: 1200000
+      pool-name: {{SERVICE_NAME}}-HikariCP
+      auto-commit: false
+      leak-detection-threshold: 60000
+
+  # JPA/Hibernate Configuration
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    show-sql: false
+    hibernate:
+      ddl-auto: validate
+      naming:
+        physical-strategy: org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+        implicit-strategy: org.springframework.boot.orm.jpa.hibernate.SpringImplicitNamingStrategy
+    properties:
+      hibernate:
+        format_sql: true
+        use_sql_comments: true
+        jdbc:
+          batch_size: 20
+          fetch_size: 50
+        order_inserts: true
+        order_updates: true
+        connection:
+          provider_disables_autocommit: true
+        query:
+          in_clause_parameter_padding: true
+          fail_on_pagination_over_collection_fetch: true
+          plan_cache_max_size: 4096
+    open-in-view: false
+
+  # Data Auditing
+  data:
+    jpa:
+      repositories:
+        enabled: true
+
+  # Jackson Configuration
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+      indent-output: true
+      fail-on-empty-beans: false
+    deserialization:
+      fail-on-unknown-properties: false
+      accept-empty-string-as-null-object: true
+    default-property-inclusion: non_null
+    time-zone: UTC
+    date-format: yyyy-MM-dd'T'HH:mm:ss
+
+  # Validation
+  validation:
+    mode: auto
+
+  # Cache Configuration
+  cache:
+    type: caffeine
+    caffeine:
+      spec: maximumSize=1000,expireAfterWrite=600s
+    cache-names:
+      - {{ENTITY_NAME}}Cache
+      - queryCache
+
+  # Transaction Configuration
+  transaction:
+    default-timeout: 30
+    rollback-on-commit-failure: true
+
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    {{PACKAGE_NAME}}: DEBUG
+    org.springframework.web: INFO
+    org.springframework.security: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.hibernate.stat: INFO
+    com.zaxxer.hikari: INFO
+  pattern:
+    console: '%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n'
+    file: '%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n'
+  file:
+    name: logs/{{SERVICE_NAME}}.log
+    max-size: 10MB
+    max-history: 30
+    total-size-cap: 1GB
+
+# Management & Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+    metrics:
+      enabled: true
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+    tags:
+      application: ${spring.application.name}
+
+# Application Info
+info:
+  app:
+    name: {{SERVICE_NAME}}
+    description: {{SERVICE_DESCRIPTION}}
+    version: 1.0.0
+    encoding: @project.build.sourceEncoding@
+    java:
+      version: @java.version@
+
+# OpenAPI/Swagger Configuration
+springdoc:
+  api-docs:
+    enabled: true
+    path: /api-docs
+  swagger-ui:
+    enabled: true
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+    display-request-duration: true
+    doc-expansion: none
+  show-actuator: true
+  default-produces-media-type: application/json
+  default-consumes-media-type: application/json
+
+# Security Configuration
+security:
+  jwt:
+    secret: {{JWT_SECRET}}
+    expiration: 86400000 # 24 hours in milliseconds
+    refresh-expiration: 604800000 # 7 days in milliseconds
+  cors:
+    allowed-origins: '*'
+    allowed-methods: GET,POST,PUT,PATCH,DELETE,OPTIONS
+    allowed-headers: '*'
+    exposed-headers: Authorization,Link,X-Total-Count
+    allow-credentials: true
+    max-age: 3600
+
+# Application-specific Configuration
+application:
+  name: {{SERVICE_NAME}}
+  version: 1.0.0
+  api:
+    prefix: /api/v1
+    rate-limit:
+      enabled: true
+      requests-per-minute: 100
+  pagination:
+    default-page-size: 20
+    max-page-size: 100
+  async:
+    core-pool-size: 10
+    max-pool-size: 50
+    queue-capacity: 100
+    thread-name-prefix: {{SERVICE_NAME}}-async-
+
+---
+# Development Profile
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/{{DB_NAME}}_dev
+    username: dev_user
+    password: dev_password
+
+  jpa:
+    show-sql: true
+    hibernate:
+      ddl-auto: update
+
+  devtools:
+    restart:
+      enabled: true
+    livereload:
+      enabled: true
+
+logging:
+  level:
+    root: DEBUG
+    {{PACKAGE_NAME}}: DEBUG
+    org.hibernate.SQL: DEBUG
+
+---
+# Test Profile
+spring:
+  config:
+    activate:
+      on-profile: test
+
+  datasource:
+    url: jdbc:h2:mem:testdb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    properties:
+      hibernate:
+        show_sql: true
+        format_sql: true
+
+  h2:
+    console:
+      enabled: true
+
+---
+# Production Profile
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+  jpa:
+    show-sql: false
+    hibernate:
+      ddl-auto: validate
+
+  cache:
+    caffeine:
+      spec: maximumSize=10000,expireAfterWrite=3600s
+
+logging:
+  level:
+    root: WARN
+    {{PACKAGE_NAME}}: INFO
+    org.hibernate.SQL: WARN
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,prometheus
+
+security:
+  cors:
+    allowed-origins: https://{{DOMAIN}}

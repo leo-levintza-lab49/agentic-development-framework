@@ -1,0 +1,326 @@
+# Documentation Generation Targets
+# Defines which repositories need documentation and what type
+
+documentation_targets:
+  # Polybase POC - Multi-Repo Architecture
+
+  - repo: user-service
+    org: polybase-poc
+    team: backend
+    priority: high
+    doc_types:
+      - readme
+      - architecture
+      - api
+      - setup
+      - deployment
+      - contributing
+    diagrams:
+      - architecture_overview
+      - sequence_authentication
+      - erd_user_models
+    notes: "Core authentication service"
+
+  - repo: auth-service
+    org: polybase-poc
+    team: backend
+    priority: high
+    doc_types:
+      - readme
+      - architecture
+      - api
+      - setup
+      - deployment
+    diagrams:
+      - sequence_jwt_flow
+      - architecture_overview
+    notes: "JWT authentication and authorization"
+
+  - repo: order-service
+    org: polybase-poc
+    team: backend
+    priority: high
+    doc_types:
+      - readme
+      - architecture
+      - api
+      - setup
+      - deployment
+    diagrams:
+      - state_order_lifecycle
+      - sequence_order_creation
+      - erd_order_models
+    notes: "Order processing and fulfillment"
+
+  - repo: notification-service
+    org: polybase-poc
+    team: backend
+    priority: medium
+    doc_types:
+      - readme
+      - architecture
+      - api
+      - setup
+    diagrams:
+      - architecture_notification_channels
+    notes: "Multi-channel notifications"
+
+  - repo: payment-service
+    org: polybase-poc
+    team: backend
+    priority: high
+    doc_types:
+      - readme
+      - architecture
+      - api
+      - setup
+      - deployment
+    diagrams:
+      - sequence_payment_flow
+      - integration_stripe
+    notes: "Payment processing with Stripe"
+
+  - repo: web-bff
+    org: polybase-poc
+    team: bff
+    priority: high
+    doc_types:
+      - readme
+      - architecture
+      - api
+      - setup
+    diagrams:
+      - architecture_bff_pattern
+      - sequence_aggregation
+    notes: "Backend-for-Frontend for web app"
+
+  - repo: mobile-bff
+    org: polybase-poc
+    team: bff
+    priority: high
+    doc_types:
+      - readme
+      - architecture
+      - api
+      - setup
+    diagrams:
+      - architecture_mobile_optimization
+    notes: "Backend-for-Frontend for mobile apps"
+
+  - repo: graphql-gateway
+    org: polybase-poc
+    team: bff
+    priority: medium
+    doc_types:
+      - readme
+      - architecture
+      - api
+      - setup
+    diagrams:
+      - architecture_schema_stitching
+    notes: "GraphQL API gateway"
+
+  - repo: web-app
+    org: polybase-poc
+    team: frontend
+    priority: high
+    doc_types:
+      - readme
+      - architecture
+      - setup
+      - contributing
+    diagrams:
+      - architecture_component_tree
+      - state_management
+    notes: "React web application"
+
+  - repo: component-library
+    org: polybase-poc
+    team: frontend
+    priority: medium
+    doc_types:
+      - readme
+      - api
+      - setup
+      - contributing
+    diagrams:
+      - component_hierarchy
+    notes: "Shared React component library"
+
+  - repo: ios-app
+    org: polybase-poc
+    team: mobile
+    priority: high
+    doc_types:
+      - readme
+      - architecture
+      - setup
+      - contributing
+    diagrams:
+      - architecture_ios_layers
+    notes: "iOS native application"
+
+  - repo: android-app
+    org: polybase-poc
+    team: mobile
+    priority: high
+    doc_types:
+      - readme
+      - architecture
+      - setup
+      - contributing
+    diagrams:
+      - architecture_android_layers
+    notes: "Android native application"
+
+  - repo: mobile-shared
+    org: polybase-poc
+    team: mobile
+    priority: medium
+    doc_types:
+      - readme
+      - api
+      - setup
+    notes: "Shared mobile code and utilities"
+
+  - repo: db-schemas
+    org: polybase-poc
+    team: data-platform
+    priority: high
+    doc_types:
+      - readme
+      - architecture
+      - contributing
+    diagrams:
+      - erd_complete_schema
+    notes: "Database schema definitions"
+
+  - repo: db-migrations
+    org: polybase-poc
+    team: data-platform
+    priority: high
+    doc_types:
+      - readme
+      - setup
+      - contributing
+    notes: "Database migration management"
+
+  - repo: terraform-aws-infrastructure
+    org: polybase-poc
+    team: platform
+    priority: high
+    doc_types:
+      - readme
+      - architecture
+      - setup
+      - deployment
+    diagrams:
+      - architecture_aws_infrastructure
+      - network_diagram
+    notes: "AWS infrastructure as code"
+
+  - repo: grafana-dashboards
+    org: polybase-poc
+    team: platform
+    priority: medium
+    doc_types:
+      - readme
+      - setup
+      - contributing
+    notes: "Monitoring dashboards"
+
+  - repo: prometheus-alerts
+    org: polybase-poc
+    team: platform
+    priority: medium
+    doc_types:
+      - readme
+      - setup
+      - contributing
+    notes: "Alert rules and policies"
+
+  # Omnibase POC - Monorepo Architecture
+
+  - repo: enterprise-monorepo
+    org: omnibase-poc
+    team: platform
+    priority: high
+    doc_structure: centralized
+    doc_types:
+      - readme
+      - architecture
+      - services
+      - team_guide
+      - api_reference
+      - setup
+      - deployment
+      - contributing
+      - troubleshooting
+    diagrams:
+      - architecture_monorepo_structure
+      - architecture_service_dependencies
+      - build_system_flow
+      - deployment_pipeline
+    notes: "Unified enterprise monorepo with Nx workspace"
+    special_requirements:
+      - "Document team boundaries"
+      - "Explain Nx affected detection"
+      - "Document shared libraries usage"
+      - "Cross-team dependency management"
+
+# Documentation Standards
+
+standards:
+  minimum_requirements:
+    - README.md with overview and quick start
+    - docs/ARCHITECTURE.md for services
+    - docs/SETUP.md for development environment
+
+  recommended:
+    - docs/API.md for services with APIs
+    - docs/DEPLOYMENT.md for deployable services
+    - docs/CONTRIBUTING.md for all repos
+    - Mermaid diagrams for architecture
+
+  optional:
+    - docs/TROUBLESHOOTING.md
+    - docs/FAQ.md
+    - docs/PERFORMANCE.md
+
+# Diagram Templates
+
+diagram_types:
+  architecture_overview:
+    type: graph
+    description: "High-level component diagram"
+
+  sequence_flow:
+    type: sequenceDiagram
+    description: "Interaction flow between components"
+
+  erd:
+    type: erDiagram
+    description: "Entity relationship diagram"
+
+  state_diagram:
+    type: stateDiagram-v2
+    description: "State machine or lifecycle"
+
+  deployment:
+    type: graph
+    description: "Deployment architecture"
+
+# Priority Levels
+
+priorities:
+  high:
+    description: "Core services - generate first"
+    sla: "Complete within 1 day"
+
+  medium:
+    description: "Supporting services - generate second"
+    sla: "Complete within 3 days"
+
+  low:
+    description: "Optional/experimental - generate last"
+    sla: "Complete within 1 week"

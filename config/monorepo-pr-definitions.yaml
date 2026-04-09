@@ -1,0 +1,734 @@
+# Enterprise Monorepo PR Definitions (omnibase-poc)
+# Timeline: October 2025 - April 2026
+# Current State: 40% completion with 3 Java services, infrastructure, and documentation
+# Total PRs: 26
+
+prs:
+  # ============================================================================
+  # Phase 1: Foundation (October - November 2025)
+  # PRs M-1 to M-7: Core infrastructure and shared libraries
+  # ============================================================================
+
+  - id: M-1
+    repo: enterprise-monorepo
+    team: platform-sre
+    branch: feature/infrastructure/nx-workspace
+    title: "Initialize monorepo with Nx workspace"
+    description: |
+      Sets up the foundational monorepo structure:
+      - Nx workspace configuration with affected detection
+      - Root package.json with npm workspaces
+      - Base TypeScript configuration with path mappings
+      - ESLint and Prettier setup
+      - Makefile for unified build commands
+
+      Monorepo will support 6 teams with independent workflows.
+      Establishes the core tooling that all subsequent PRs will build upon.
+    files:
+      - nx.json
+      - package.json
+      - tsconfig.base.json
+      - .eslintrc.json
+      - .prettierrc
+      - Makefile
+      - .gitignore
+      - README.md
+    dependencies: []
+    complexity: senior-level
+    created: "2025-10-07T14:00:00Z"
+    review_hours: 24
+
+  - id: M-2
+    repo: enterprise-monorepo
+    team: platform-sre
+    branch: feature/infrastructure/maven-structure
+    title: "Add Maven multi-module structure for Java services"
+    description: |
+      Establishes Maven-based build system for Java microservices:
+      - Root POM with dependency management and plugins
+      - Parent POM for service modules
+      - BOM (Bill of Materials) for Spring Boot dependencies
+      - Maven wrapper for consistent builds
+      - Integration with Nx for unified workflow
+
+      Supports Spring Boot 3.x, Java 17, and common service patterns.
+    files:
+      - pom.xml
+      - services/pom.xml
+      - mvnw
+      - mvnw.cmd
+      - .mvn/wrapper/maven-wrapper.properties
+    dependencies:
+      - M-1
+    complexity: senior-level
+    created: "2025-10-14T10:30:00Z"
+    review_hours: 16
+
+  - id: M-3
+    repo: enterprise-monorepo
+    team: backend
+    branch: feature/shared/common-library
+    title: "Add shared Java common library"
+    description: |
+      Creates common library for shared Java utilities:
+      - Base exception classes and error handling
+      - Common DTOs and response wrappers
+      - Logging utilities with structured logging
+      - Validation helpers and custom validators
+      - Date/time utilities and converters
+
+      Will be used by all Java microservices to ensure consistency.
+    files:
+      - libs/common/pom.xml
+      - libs/common/src/main/java/com/omnibase/common/**
+      - libs/common/src/test/java/com/omnibase/common/**
+    dependencies:
+      - M-2
+    complexity: mid-level
+    created: "2025-10-21T09:15:00Z"
+    review_hours: 8
+
+  - id: M-4
+    repo: enterprise-monorepo
+    team: backend
+    branch: feature/shared/security-library
+    title: "Add shared security library with JWT support"
+    description: |
+      Implements shared security components:
+      - JWT token generation and validation
+      - Spring Security base configuration
+      - OAuth2 client support
+      - API key authentication utilities
+      - Security filters and interceptors
+
+      Provides consistent authentication/authorization across services.
+    files:
+      - libs/security/pom.xml
+      - libs/security/src/main/java/com/omnibase/security/**
+      - libs/security/src/test/java/com/omnibase/security/**
+    dependencies:
+      - M-3
+    complexity: senior-level
+    created: "2025-10-28T11:00:00Z"
+    review_hours: 12
+
+  - id: M-5
+    repo: enterprise-monorepo
+    team: platform-sre
+    branch: feature/infrastructure/docker-compose
+    title: "Add Docker Compose for local development"
+    description: |
+      Creates local development environment:
+      - PostgreSQL database with init scripts
+      - Redis for caching and sessions
+      - Kafka for event streaming
+      - Prometheus and Grafana for observability
+      - Service mesh configuration (optional)
+
+      Enables full-stack local testing without external dependencies.
+    files:
+      - docker-compose.yml
+      - docker-compose.override.yml
+      - docker/postgres/init.sql
+      - docker/prometheus/prometheus.yml
+      - docker/grafana/dashboards/**
+    dependencies:
+      - M-2
+    complexity: mid-level
+    created: "2025-11-04T13:45:00Z"
+    review_hours: 6
+
+  - id: M-6
+    repo: enterprise-monorepo
+    team: frontend
+    branch: feature/shared/ui-components
+    title: "Add shared React component library foundation"
+    description: |
+      Creates base for shared UI components:
+      - Component library project structure with Storybook
+      - Base design tokens (colors, spacing, typography)
+      - Atomic design system foundation
+      - Button, Input, Card base components
+      - Build configuration with Rollup
+
+      Establishes design system that web-app will consume.
+    files:
+      - libs/ui-components/package.json
+      - libs/ui-components/src/components/**
+      - libs/ui-components/.storybook/main.js
+      - libs/ui-components/rollup.config.js
+    dependencies:
+      - M-1
+    complexity: mid-level
+    created: "2025-11-11T10:20:00Z"
+    review_hours: 10
+
+  - id: M-7
+    repo: enterprise-monorepo
+    team: platform-sre
+    branch: feature/infrastructure/ci-cd-pipeline
+    title: "Add GitHub Actions CI/CD with Nx affected detection"
+    description: |
+      Implements continuous integration and deployment:
+      - GitHub Actions workflows for PR validation
+      - Nx affected commands for efficient builds
+      - Matrix builds for different service types
+      - Docker image building and pushing
+      - Automated testing with coverage reports
+
+      Only builds/tests affected projects, reducing CI time significantly.
+    files:
+      - .github/workflows/ci.yml
+      - .github/workflows/pr-validation.yml
+      - .github/workflows/docker-build.yml
+      - scripts/ci/affected-test.sh
+      - scripts/ci/affected-build.sh
+    dependencies:
+      - M-1
+      - M-2
+    complexity: senior-level
+    created: "2025-11-18T15:00:00Z"
+    review_hours: 20
+
+  # ============================================================================
+  # Phase 2: Initial Services (December 2025 - January 2026)
+  # PRs M-8 to M-15: First 3 Java services, governance, documentation
+  # ============================================================================
+
+  - id: M-8
+    repo: enterprise-monorepo
+    team: backend
+    branch: feature/services/user-service
+    title: "Add user-service with user management and profiles"
+    description: |
+      Migrates and enhances user-service from polybase-poc:
+      - User CRUD operations with validation
+      - Profile management with avatar support
+      - Role-based access control
+      - PostgreSQL persistence with Flyway migrations
+      - REST API with OpenAPI documentation
+
+      Based on polybase-poc/user-service with monorepo adaptations.
+      First production service in the monorepo.
+    files:
+      - services/user-service/pom.xml
+      - services/user-service/src/main/java/com/omnibase/user/**
+      - services/user-service/src/main/resources/db/migration/**
+      - services/user-service/src/test/java/com/omnibase/user/**
+      - services/user-service/Dockerfile
+    dependencies:
+      - M-3
+      - M-4
+      - M-5
+    complexity: senior-level
+    created: "2025-12-02T09:30:00Z"
+    review_hours: 16
+
+  - id: M-9
+    repo: enterprise-monorepo
+    team: backend
+    branch: feature/services/auth-service
+    title: "Add auth-service with JWT authentication"
+    description: |
+      Implements authentication and authorization service:
+      - OAuth2 authorization server
+      - JWT token issuance and refresh
+      - Login/logout endpoints with session management
+      - Integration with user-service for identity
+      - Rate limiting and brute force protection
+
+      Based on polybase-poc/auth-service with enhanced security.
+    files:
+      - services/auth-service/pom.xml
+      - services/auth-service/src/main/java/com/omnibase/auth/**
+      - services/auth-service/src/main/resources/application.yml
+      - services/auth-service/src/test/java/com/omnibase/auth/**
+      - services/auth-service/Dockerfile
+    dependencies:
+      - M-4
+      - M-8
+    complexity: senior-level
+    created: "2025-12-09T14:15:00Z"
+    review_hours: 18
+
+  - id: M-10
+    repo: enterprise-monorepo
+    team: backend
+    branch: feature/services/order-service
+    title: "Add order-service with order processing and fulfillment"
+    description: |
+      Creates order management service:
+      - Order creation and lifecycle management
+      - Order status tracking with state machine
+      - Integration with payment service (placeholder)
+      - Event publishing to Kafka for order events
+      - Transaction management with saga pattern
+
+      Based on polybase-poc/order-service with event-driven enhancements.
+      Third core service completing the initial service triad.
+    files:
+      - services/order-service/pom.xml
+      - services/order-service/src/main/java/com/omnibase/order/**
+      - services/order-service/src/main/resources/db/migration/**
+      - services/order-service/src/test/java/com/omnibase/order/**
+      - services/order-service/Dockerfile
+    dependencies:
+      - M-3
+      - M-5
+    complexity: senior-level
+    created: "2025-12-16T10:45:00Z"
+    review_hours: 16
+
+  - id: M-11
+    repo: enterprise-monorepo
+    team: platform-sre
+    branch: feature/governance/codeowners
+    title: "Add CODEOWNERS and team ownership mappings"
+    description: |
+      Establishes code ownership and review policies:
+      - CODEOWNERS file with team-based ownership
+      - Required reviewers for shared libraries
+      - Service ownership by backend team
+      - Frontend ownership for UI components and apps
+      - Documentation ownership by technical writers
+
+      Ensures proper review coverage across 6 teams.
+    files:
+      - .github/CODEOWNERS
+      - docs/governance/ownership-model.md
+      - docs/governance/review-guidelines.md
+    dependencies:
+      - M-8
+      - M-9
+      - M-10
+    complexity: junior-level
+    created: "2025-12-23T11:00:00Z"
+    review_hours: 4
+
+  - id: M-12
+    repo: enterprise-monorepo
+    team: platform-sre
+    branch: feature/docs/architecture-overview
+    title: "Add comprehensive architecture documentation"
+    description: |
+      Documents monorepo architecture and patterns:
+      - System architecture diagrams with C4 model
+      - Service interaction patterns and API contracts
+      - Data flow documentation with event schemas
+      - Deployment architecture with infrastructure
+      - Security architecture and authentication flows
+
+      Provides onboarding materials for new team members.
+    files:
+      - docs/architecture/overview.md
+      - docs/architecture/service-communication.md
+      - docs/architecture/data-flow.md
+      - docs/architecture/diagrams/**
+      - docs/architecture/security.md
+    dependencies:
+      - M-8
+      - M-9
+      - M-10
+    complexity: mid-level
+    created: "2026-01-06T09:00:00Z"
+    review_hours: 8
+
+  - id: M-13
+    repo: enterprise-monorepo
+    team: platform-sre
+    branch: feature/docs/development-guide
+    title: "Add developer onboarding and contribution guide"
+    description: |
+      Creates comprehensive developer documentation:
+      - Quick start guide with local setup
+      - Service development templates and patterns
+      - Testing guidelines with examples
+      - Git workflow and branching strategy
+      - Troubleshooting common issues
+
+      Reduces onboarding time from days to hours.
+    files:
+      - docs/development/getting-started.md
+      - docs/development/service-template.md
+      - docs/development/testing-guide.md
+      - docs/development/git-workflow.md
+      - docs/development/troubleshooting.md
+    dependencies:
+      - M-5
+      - M-7
+    complexity: junior-level
+    created: "2026-01-13T14:30:00Z"
+    review_hours: 6
+
+  - id: M-14
+    repo: enterprise-monorepo
+    team: platform-sre
+    branch: feature/infrastructure/makefile-targets
+    title: "Enhance Makefile with comprehensive build targets"
+    description: |
+      Expands Makefile for common development tasks:
+      - Service-specific build and test targets
+      - Docker compose orchestration commands
+      - Database migration helpers
+      - Code generation and formatting
+      - CI simulation and validation
+
+      Provides unified interface for all build operations.
+    files:
+      - Makefile
+      - scripts/build/docker-build.sh
+      - scripts/build/run-tests.sh
+      - scripts/db/migrate.sh
+    dependencies:
+      - M-1
+      - M-2
+      - M-5
+    complexity: mid-level
+    created: "2026-01-20T10:15:00Z"
+    review_hours: 6
+
+  - id: M-15
+    repo: enterprise-monorepo
+    team: platform-sre
+    branch: feature/tracking/migration-status
+    title: "Add migration tracking and progress dashboard"
+    description: |
+      Implements migration progress tracking:
+      - Service migration checklist and status
+      - Team onboarding progress tracking
+      - Metrics dashboard with completion percentages
+      - Dependency graph visualization
+      - Automated reporting to Slack
+
+      Currently shows 40% completion (infrastructure + 3 services).
+    files:
+      - docs/tracking/migration-status.md
+      - scripts/tracking/calculate-progress.sh
+      - scripts/tracking/generate-report.py
+      - .github/workflows/progress-report.yml
+    dependencies:
+      - M-11
+      - M-12
+      - M-13
+    complexity: mid-level
+    created: "2026-01-27T15:45:00Z"
+    review_hours: 8
+
+  # ============================================================================
+  # Phase 3: BFF Services (February 2026)
+  # PRs M-16 to M-18: Backend-for-frontend services
+  # ============================================================================
+
+  - id: M-16
+    repo: enterprise-monorepo
+    team: bff
+    branch: feature/services/web-bff
+    title: "Add web-bff for web application API aggregation"
+    description: |
+      Creates BFF service for web frontend:
+      - REST API aggregating user, auth, and order services
+      - Response transformation for web-specific needs
+      - Caching layer with Redis
+      - Rate limiting per client
+      - API versioning support
+
+      First BFF service, establishes patterns for mobile-bff.
+    files:
+      - services/web-bff/pom.xml
+      - services/web-bff/src/main/java/com/omnibase/bff/web/**
+      - services/web-bff/src/test/java/com/omnibase/bff/web/**
+      - services/web-bff/Dockerfile
+    dependencies:
+      - M-8
+      - M-9
+      - M-10
+    complexity: senior-level
+    created: "2026-02-03T11:00:00Z"
+    review_hours: 14
+
+  - id: M-17
+    repo: enterprise-monorepo
+    team: bff
+    branch: feature/services/mobile-bff
+    title: "Add mobile-bff for mobile app optimization"
+    description: |
+      Creates BFF service for mobile applications:
+      - Optimized payloads for mobile bandwidth
+      - Pagination and infinite scroll support
+      - Push notification registration
+      - Offline-first data synchronization hooks
+      - Mobile-specific error handling
+
+      Based on web-bff patterns with mobile optimizations.
+    files:
+      - services/mobile-bff/pom.xml
+      - services/mobile-bff/src/main/java/com/omnibase/bff/mobile/**
+      - services/mobile-bff/src/test/java/com/omnibase/bff/mobile/**
+      - services/mobile-bff/Dockerfile
+    dependencies:
+      - M-16
+    complexity: senior-level
+    created: "2026-02-10T13:30:00Z"
+    review_hours: 14
+
+  - id: M-18
+    repo: enterprise-monorepo
+    team: bff
+    branch: feature/services/graphql-gateway
+    title: "Add GraphQL gateway for flexible data fetching"
+    description: |
+      Implements GraphQL API gateway:
+      - GraphQL schema stitching from multiple services
+      - DataLoader for N+1 query prevention
+      - Subscription support for real-time updates
+      - Query complexity analysis and limits
+      - GraphQL playground for development
+
+      Provides alternative API paradigm alongside REST.
+    files:
+      - services/graphql-gateway/pom.xml
+      - services/graphql-gateway/src/main/java/com/omnibase/graphql/**
+      - services/graphql-gateway/src/main/resources/schema.graphqls
+      - services/graphql-gateway/src/test/java/com/omnibase/graphql/**
+      - services/graphql-gateway/Dockerfile
+    dependencies:
+      - M-16
+      - M-17
+    complexity: senior-level
+    created: "2026-02-17T10:00:00Z"
+    review_hours: 16
+
+  # ============================================================================
+  # Phase 4: More Services (March 2026)
+  # PRs M-19 to M-23: Additional services and frontend
+  # ============================================================================
+
+  - id: M-19
+    repo: enterprise-monorepo
+    team: backend
+    branch: feature/services/payment-service
+    title: "Add payment-service with Stripe integration"
+    description: |
+      Implements payment processing service:
+      - Stripe payment intent creation and confirmation
+      - Payment method management
+      - Webhook handling for payment events
+      - Refund and dispute handling
+      - PCI compliance measures
+
+      Completes order-service integration placeholder.
+    files:
+      - services/payment-service/pom.xml
+      - services/payment-service/src/main/java/com/omnibase/payment/**
+      - services/payment-service/src/main/resources/db/migration/**
+      - services/payment-service/src/test/java/com/omnibase/payment/**
+      - services/payment-service/Dockerfile
+    dependencies:
+      - M-10
+    complexity: senior-level
+    created: "2026-03-03T09:15:00Z"
+    review_hours: 18
+
+  - id: M-20
+    repo: enterprise-monorepo
+    team: backend
+    branch: feature/services/notification-service
+    title: "Add notification-service with multi-channel support"
+    description: |
+      Creates notification delivery service:
+      - Email notifications with templates
+      - SMS notifications via Twilio
+      - Push notifications for mobile apps
+      - In-app notification center
+      - Event-driven notification triggers
+
+      Consumes events from order, payment, and user services.
+    files:
+      - services/notification-service/pom.xml
+      - services/notification-service/src/main/java/com/omnibase/notification/**
+      - services/notification-service/src/main/resources/templates/**
+      - services/notification-service/src/test/java/com/omnibase/notification/**
+      - services/notification-service/Dockerfile
+    dependencies:
+      - M-5
+      - M-10
+      - M-19
+    complexity: mid-level
+    created: "2026-03-10T14:00:00Z"
+    review_hours: 12
+
+  - id: M-21
+    repo: enterprise-monorepo
+    team: frontend
+    branch: feature/apps/web-app
+    title: "Add React web application with Next.js"
+    description: |
+      Creates main web application:
+      - Next.js app with SSR and SSG
+      - User authentication flows
+      - Order management dashboard
+      - Profile management pages
+      - Integration with web-bff
+
+      Uses shared ui-components library for consistent design.
+    files:
+      - apps/web-app/package.json
+      - apps/web-app/src/pages/**
+      - apps/web-app/src/components/**
+      - apps/web-app/next.config.js
+      - apps/web-app/Dockerfile
+    dependencies:
+      - M-6
+      - M-16
+    complexity: senior-level
+    created: "2026-03-17T11:30:00Z"
+    review_hours: 16
+
+  - id: M-22
+    repo: enterprise-monorepo
+    team: frontend
+    branch: feature/libs/component-library-expansion
+    title: "Expand component library with forms and tables"
+    description: |
+      Enhances shared component library:
+      - Form components with validation
+      - Data table with sorting and filtering
+      - Modal and dialog components
+      - Navigation components
+      - Loading and error states
+
+      Addresses needs discovered during web-app development.
+    files:
+      - libs/ui-components/src/components/Form/**
+      - libs/ui-components/src/components/Table/**
+      - libs/ui-components/src/components/Modal/**
+      - libs/ui-components/src/components/Navigation/**
+    dependencies:
+      - M-21
+    complexity: mid-level
+    created: "2026-03-24T10:00:00Z"
+    review_hours: 10
+
+  - id: M-23
+    repo: enterprise-monorepo
+    team: data-platform
+    branch: feature/libs/db-schemas
+    title: "Add shared database schema library and migrations"
+    description: |
+      Centralizes database schema definitions:
+      - Shared entity definitions and models
+      - Common Flyway migration scripts
+      - Database versioning strategy
+      - Schema documentation and ERD diagrams
+      - Migration testing utilities
+
+      Ensures consistency across services using PostgreSQL.
+    files:
+      - libs/db-schemas/pom.xml
+      - libs/db-schemas/src/main/resources/db/common/**
+      - libs/db-schemas/docs/schema.md
+      - libs/db-schemas/docs/erd.png
+    dependencies:
+      - M-8
+      - M-10
+      - M-19
+    complexity: mid-level
+    created: "2026-03-31T13:45:00Z"
+    review_hours: 8
+
+  # ============================================================================
+  # Phase 5: Advanced Features (April 2026)
+  # PRs M-24 to M-26: Final enhancements and consolidation
+  # ============================================================================
+
+  - id: M-24
+    repo: enterprise-monorepo
+    team: backend
+    branch: feature/services/observability-enhancement
+    title: "Enhance services with distributed tracing and metrics"
+    description: |
+      Adds comprehensive observability:
+      - OpenTelemetry instrumentation across all services
+      - Distributed tracing with Jaeger
+      - Prometheus metrics with custom service metrics
+      - Structured logging with correlation IDs
+      - Performance monitoring dashboards
+
+      Upgrades user-service, auth-service, and order-service.
+    files:
+      - libs/observability/pom.xml
+      - libs/observability/src/main/java/com/omnibase/observability/**
+      - services/user-service/src/main/java/com/omnibase/user/config/ObservabilityConfig.java
+      - services/auth-service/src/main/java/com/omnibase/auth/config/ObservabilityConfig.java
+      - services/order-service/src/main/java/com/omnibase/order/config/ObservabilityConfig.java
+    dependencies:
+      - M-8
+      - M-9
+      - M-10
+    complexity: senior-level
+    created: "2026-04-02T09:00:00Z"
+    review_hours: 14
+
+  - id: M-25
+    repo: enterprise-monorepo
+    team: platform-sre
+    branch: feature/infrastructure/kubernetes-manifests
+    title: "Add Kubernetes deployment manifests and Helm charts"
+    description: |
+      Implements Kubernetes deployment configuration:
+      - Helm charts for all services
+      - ConfigMaps and Secrets management
+      - Service mesh integration with Istio
+      - Horizontal Pod Autoscaling
+      - Ingress configuration with TLS
+
+      Enables production deployment to Kubernetes clusters.
+    files:
+      - k8s/helm/charts/**
+      - k8s/base/namespace.yaml
+      - k8s/base/configmaps.yaml
+      - k8s/overlays/production/**
+      - k8s/overlays/staging/**
+    dependencies:
+      - M-8
+      - M-9
+      - M-10
+      - M-16
+      - M-17
+      - M-18
+      - M-19
+      - M-20
+    complexity: senior-level
+    created: "2026-04-07T14:30:00Z"
+    review_hours: 20
+
+  - id: M-26
+    repo: enterprise-monorepo
+    team: platform-sre
+    branch: feature/consolidation/april-checkpoint
+    title: "Consolidate monorepo at 40% completion milestone"
+    description: |
+      Final consolidation representing 40% completion:
+      - Update all documentation to reflect current state
+      - Consolidate CI/CD workflows for efficiency
+      - Refactor shared libraries based on learnings
+      - Update migration tracking to 40% complete
+      - Create roadmap for remaining 60%
+
+      Checkpoint PR capturing state as of April 9, 2026.
+      Infrastructure complete, 3 core services operational,
+      BFF layer established, foundation for remaining services.
+
+      Next phase: Migrate remaining 12 services from polybase-poc.
+    files:
+      - README.md
+      - docs/roadmap/remaining-services.md
+      - docs/tracking/migration-status.md
+      - docs/lessons-learned.md
+      - CHANGELOG.md
+    dependencies:
+      - M-24
+      - M-25
+    complexity: mid-level
+    created: "2026-04-09T16:00:00Z"
+    review_hours: 8

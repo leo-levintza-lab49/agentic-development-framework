@@ -1,0 +1,190 @@
+import React, { createContext, useContext, useReducer, useCallback, useMemo } from 'react';
+
+/**
+ * State interface for {{CONTEXT_NAME}}
+ */
+interface {{CONTEXT_NAME}}State {
+  // Define state properties
+  data: unknown;
+  isLoading: boolean;
+  error: Error | null;
+}
+
+/**
+ * Action types for the reducer
+ */
+type {{CONTEXT_NAME}}Action =
+  | { type: 'SET_LOADING'; payload: boolean }
+  | { type: 'SET_DATA'; payload: unknown }
+  | { type: 'SET_ERROR'; payload: Error | null }
+  | { type: 'RESET' };
+
+/**
+ * Context value interface
+ */
+interface {{CONTEXT_NAME}}ContextValue {
+  state: {{CONTEXT_NAME}}State;
+  actions: {
+    setData: (data: unknown) => void;
+    setLoading: (isLoading: boolean) => void;
+    setError: (error: Error | null) => void;
+    reset: () => void;
+  };
+}
+
+/**
+ * Props for the {{CONTEXT_NAME}}Provider
+ */
+interface {{CONTEXT_NAME}}ProviderProps {
+  children: React.ReactNode;
+  initialState?: Partial<{{CONTEXT_NAME}}State>;
+}
+
+/**
+ * Initial state
+ */
+const initialState: {{CONTEXT_NAME}}State = {
+  data: null,
+  isLoading: false,
+  error: null,
+};
+
+/**
+ * Create the context
+ */
+const {{CONTEXT_NAME}}Context = createContext<{{CONTEXT_NAME}}ContextValue | undefined>(undefined);
+
+/**
+ * Reducer function
+ */
+const {{CONTEXT_NAME}}Reducer = (
+  state: {{CONTEXT_NAME}}State,
+  action: {{CONTEXT_NAME}}Action
+): {{CONTEXT_NAME}}State => {
+  switch (action.type) {
+    case 'SET_LOADING':
+      return {
+        ...state,
+        isLoading: action.payload,
+      };
+    case 'SET_DATA':
+      return {
+        ...state,
+        data: action.payload,
+        isLoading: false,
+        error: null,
+      };
+    case 'SET_ERROR':
+      return {
+        ...state,
+        error: action.payload,
+        isLoading: false,
+      };
+    case 'RESET':
+      return initialState;
+    default:
+      return state;
+  }
+};
+
+/**
+ * {{CONTEXT_NAME}} Provider Component
+ *
+ * @description Provides {{CONTEXT_NAME}} state and actions to child components
+ * @example
+ * <{{CONTEXT_NAME}}Provider>
+ *   <App />
+ * </{{CONTEXT_NAME}}Provider>
+ */
+export const {{CONTEXT_NAME}}Provider: React.FC<{{CONTEXT_NAME}}ProviderProps> = ({
+  children,
+  initialState: customInitialState,
+}) => {
+  const [state, dispatch] = useReducer(
+    {{CONTEXT_NAME}}Reducer,
+    {
+      ...initialState,
+      ...customInitialState,
+    }
+  );
+
+  // Memoized actions
+  const actions = useMemo(
+    () => ({
+      setData: (data: unknown) => {
+        dispatch({ type: 'SET_DATA', payload: data });
+      },
+      setLoading: (isLoading: boolean) => {
+        dispatch({ type: 'SET_LOADING', payload: isLoading });
+      },
+      setError: (error: Error | null) => {
+        dispatch({ type: 'SET_ERROR', payload: error });
+      },
+      reset: () => {
+        dispatch({ type: 'RESET' });
+      },
+    }),
+    []
+  );
+
+  // Memoized context value
+  const value = useMemo(
+    () => ({
+      state,
+      actions,
+    }),
+    [state, actions]
+  );
+
+  return (
+    <{{CONTEXT_NAME}}Context.Provider value={value}>
+      {children}
+    </{{CONTEXT_NAME}}Context.Provider>
+  );
+};
+
+/**
+ * Custom hook to use {{CONTEXT_NAME}} context
+ *
+ * @description Hook to access {{CONTEXT_NAME}} state and actions
+ * @throws {Error} If used outside of {{CONTEXT_NAME}}Provider
+ * @example
+ * const { state, actions } = use{{CONTEXT_NAME}}();
+ */
+export const use{{CONTEXT_NAME}} = (): {{CONTEXT_NAME}}ContextValue => {
+  const context = useContext({{CONTEXT_NAME}}Context);
+
+  if (context === undefined) {
+    throw new Error(
+      'use{{CONTEXT_NAME}} must be used within a {{CONTEXT_NAME}}Provider'
+    );
+  }
+
+  return context;
+};
+
+/**
+ * Custom hook to use {{CONTEXT_NAME}} state only
+ *
+ * @description Hook to access only the state without actions
+ * @example
+ * const { data, isLoading, error } = use{{CONTEXT_NAME}}State();
+ */
+export const use{{CONTEXT_NAME}}State = (): {{CONTEXT_NAME}}State => {
+  const { state } = use{{CONTEXT_NAME}}();
+  return state;
+};
+
+/**
+ * Custom hook to use {{CONTEXT_NAME}} actions only
+ *
+ * @description Hook to access only the actions without state
+ * @example
+ * const { setData, reset } = use{{CONTEXT_NAME}}Actions();
+ */
+export const use{{CONTEXT_NAME}}Actions = () => {
+  const { actions } = use{{CONTEXT_NAME}}();
+  return actions;
+};
+
+export default {{CONTEXT_NAME}}Provider;

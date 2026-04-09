@@ -1,0 +1,128 @@
+package {{PACKAGE_NAME}}.domain.entity.base;
+
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+import org.springframework.data.annotation.CreatedBy;
+import org.springframework.data.annotation.LastModifiedBy;
+import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+
+import javax.persistence.*;
+import java.io.Serializable;
+import java.time.LocalDateTime;
+
+/**
+ * Base entity class providing common fields for all entities.
+ * Includes id, audit timestamps, and versioning for optimistic locking.
+ *
+ * @author Generated
+ * @version 1.0
+ */
+@MappedSuperclass
+@EntityListeners(AuditingEntityListener.class)
+@Data
+@SuperBuilder
+@NoArgsConstructor
+@AllArgsConstructor
+public abstract class BaseEntity implements Serializable {
+
+    private static final long serialVersionUID = 1L;
+
+    /**
+     * Primary key using UUID strategy for better distribution in distributed systems.
+     */
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id", updatable = false, nullable = false)
+    private Long id;
+
+    /**
+     * Timestamp when the entity was created.
+     * Automatically set by Hibernate on persist.
+     */
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    /**
+     * Timestamp when the entity was last updated.
+     * Automatically updated by Hibernate on merge.
+     */
+    @UpdateTimestamp
+    @Column(name = "updated_at", nullable = false)
+    private LocalDateTime updatedAt;
+
+    /**
+     * Username or identifier of the user who created the entity.
+     * Populated by Spring Data JPA auditing.
+     */
+    @CreatedBy
+    @Column(name = "created_by", updatable = false, length = 255)
+    private String createdBy;
+
+    /**
+     * Username or identifier of the user who last modified the entity.
+     * Populated by Spring Data JPA auditing.
+     */
+    @LastModifiedBy
+    @Column(name = "last_modified_by", length = 255)
+    private String lastModifiedBy;
+
+    /**
+     * Version field for optimistic locking.
+     * Prevents lost updates in concurrent scenarios.
+     */
+    @Version
+    @Column(name = "version")
+    private Long version;
+
+    /**
+     * Soft delete flag. Entities are marked as deleted rather than physically removed.
+     */
+    @Column(name = "deleted", nullable = false)
+    private Boolean deleted = false;
+
+    /**
+     * Lifecycle callback executed before persisting the entity.
+     */
+    @PrePersist
+    protected void onCreate() {
+        if (this.deleted == null) {
+            this.deleted = false;
+        }
+    }
+
+    /**
+     * Lifecycle callback executed before updating the entity.
+     */
+    @PreUpdate
+    protected void onUpdate() {
+        // Hook for subclasses to add custom logic
+    }
+
+    /**
+     * Soft delete the entity by marking it as deleted.
+     */
+    public void softDelete() {
+        this.deleted = true;
+    }
+
+    /**
+     * Restore a soft-deleted entity.
+     */
+    public void restore() {
+        this.deleted = false;
+    }
+
+    /**
+     * Check if the entity is soft-deleted.
+     *
+     * @return true if deleted, false otherwise
+     */
+    public boolean isDeleted() {
+        return Boolean.TRUE.equals(this.deleted);
+    }
+}

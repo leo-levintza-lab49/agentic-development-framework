@@ -1,0 +1,355 @@
+package {{PACKAGE_NAME}}.config;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.info.Contact;
+import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.info.License;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
+import io.swagger.v3.oas.models.security.SecurityScheme;
+import io.swagger.v3.oas.models.Components;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.annotation.EnableCaching;
+import org.springframework.cache.caffeine.CaffeineCacheManager;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.data.domain.AuditorAware;
+import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
+import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
+import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
+import org.springframework.scheduling.annotation.EnableAsync;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.transaction.annotation.EnableTransactionManagement;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.filter.CorsFilter;
+
+import java.util.Arrays;
+import java.util.Optional;
+import java.util.concurrent.Executor;
+
+/**
+ * Application configuration class.
+ * Configures JPA, caching, async processing, CORS, and OpenAPI.
+ *
+ * @author Generated
+ * @version 1.0
+ */
+@Configuration
+@EnableJpaRepositories(basePackages = "{{PACKAGE_NAME}}.repository")
+@EnableJpaAuditing(auditorAwareRef = "auditorProvider")
+@EnableTransactionManagement
+@EnableCaching
+@EnableAsync
+public class ApplicationConfiguration {
+
+    @Value("${spring.application.name}")
+    private String applicationName;
+
+    @Value("${info.app.version}")
+    private String applicationVersion;
+
+    @Value("${info.app.description}")
+    private String applicationDescription;
+
+    @Value("${security.cors.allowed-origins}")
+    private String allowedOrigins;
+
+    @Value("${security.cors.allowed-methods}")
+    private String allowedMethods;
+
+    @Value("${security.cors.allowed-headers}")
+    private String allowedHeaders;
+
+    @Value("${application.async.core-pool-size}")
+    private int asyncCorePoolSize;
+
+    @Value("${application.async.max-pool-size}")
+    private int asyncMaxPoolSize;
+
+    @Value("${application.async.queue-capacity}")
+    private int asyncQueueCapacity;
+
+    /**
+     * Configure OpenAPI/Swagger documentation.
+     */
+    @Bean
+    public OpenAPI customOpenAPI() {
+        return new OpenAPI()
+                .info(new Info()
+                        .title(applicationName + " API")
+                        .version(applicationVersion)
+                        .description(applicationDescription)
+                        .contact(new Contact()
+                                .name("API Support")
+                                .email("support@company.com")
+                                .url("https://www.company.com/support"))
+                        .license(new License()
+                                .name("Apache 2.0")
+                                .url("https://www.apache.org/licenses/LICENSE-2.0.html")))
+                .addSecurityItem(new SecurityRequirement().addList("Bearer Authentication"))
+                .components(new Components()
+                        .addSecuritySchemes("Bearer Authentication",
+                                new SecurityScheme()
+                                        .type(SecurityScheme.Type.HTTP)
+                                        .scheme("bearer")
+                                        .bearerFormat("JWT")
+                                        .description("Enter JWT token")));
+    }
+
+    /**
+     * Configure CORS filter.
+     */
+    @Bean
+    public CorsFilter corsFilter() {
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        CorsConfiguration config = new CorsConfiguration();
+
+        config.setAllowCredentials(true);
+        config.setAllowedOriginPatterns(Arrays.asList(allowedOrigins.split(",")));
+        config.setAllowedHeaders(Arrays.asList(allowedHeaders.split(",")));
+        config.setAllowedMethods(Arrays.asList(allowedMethods.split(",")));
+        config.setExposedHeaders(Arrays.asList("Authorization", "Link", "X-Total-Count"));
+        config.setMaxAge(3600L);
+
+        source.registerCorsConfiguration("/**", config);
+        return new CorsFilter(source);
+    }
+
+    /**
+     * Configure Jackson ObjectMapper for JSON serialization.
+     */
+    @Bean
+    public ObjectMapper objectMapper() {
+        return Jackson2ObjectMapperBuilder.json()
+                .modules(new JavaTimeModule())
+                .featuresToDisable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+                .featuresToEnable(SerializationFeature.INDENT_OUTPUT)
+                .build();
+    }
+
+    /**
+     * Configure cache manager with Caffeine.
+     */
+    @Bean
+    public CacheManager cacheManager() {
+        CaffeineCacheManager cacheManager = new CaffeineCacheManager();
+        cacheManager.setCacheNames(Arrays.asList(
+                "{{ENTITY_NAME}}Cache",
+                "queryCache",
+                "statisticsCache"
+        ));
+        return cacheManager;
+    }
+
+    /**
+     * Configure async executor for background tasks.
+     */
+    @Bean(name = "taskExecutor")
+    public Executor taskExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(asyncCorePoolSize);
+        executor.setMaxPoolSize(asyncMaxPoolSize);
+        executor.setQueueCapacity(asyncQueueCapacity);
+        executor.setThreadNamePrefix("async-");
+        executor.setWaitForTasksToCompleteOnShutdown(true);
+        executor.setAwaitTerminationSeconds(60);
+        executor.initialize();
+        return executor;
+    }
+
+    /**
+     * Provide auditor for JPA auditing (created_by, last_modified_by fields).
+     * Returns the current authenticated username.
+     */
+    @Bean
+    public AuditorAware<String> auditorProvider() {
+        return () -> {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+            if (authentication == null || !authentication.isAuthenticated()) {
+                return Optional.of("system");
+            }
+
+            String username = authentication.getName();
+            return Optional.ofNullable(username).or(() -> Optional.of("anonymous"));
+        };
+    }
+}
+
+/**
+ * Security configuration class.
+ * Configures Spring Security, JWT authentication, and authorization.
+ *
+ * @author Generated
+ * @version 1.0
+ */
+@Configuration
+class SecurityConfiguration {
+
+    @Value("${security.jwt.secret}")
+    private String jwtSecret;
+
+    @Value("${security.jwt.expiration}")
+    private long jwtExpiration;
+
+    /**
+     * Configure password encoder.
+     */
+    @Bean
+    public org.springframework.security.crypto.password.PasswordEncoder passwordEncoder() {
+        return new org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder();
+    }
+
+    /**
+     * Configure authentication manager.
+     */
+    // Add your authentication manager configuration here
+
+    /**
+     * Configure HTTP security.
+     */
+    // Add your security filter chain configuration here
+
+    /**
+     * JWT token provider bean.
+     */
+    // Add your JWT token provider configuration here
+}
+
+/**
+ * Database configuration class.
+ * Additional database-specific configurations.
+ *
+ * @author Generated
+ * @version 1.0
+ */
+@Configuration
+class DatabaseConfiguration {
+
+    /**
+     * Configure additional data source properties if needed.
+     */
+    // Add custom database configuration here
+}
+
+/**
+ * Web MVC configuration class.
+ * Configures web layer settings.
+ *
+ * @author Generated
+ * @version 1.0
+ */
+@Configuration
+class WebMvcConfiguration implements org.springframework.web.servlet.config.annotation.WebMvcConfigurer {
+
+    /**
+     * Add custom interceptors.
+     */
+    @Override
+    public void addInterceptors(org.springframework.web.servlet.config.annotation.InterceptorRegistry registry) {
+        // Add custom interceptors here
+        // Example: registry.addInterceptor(new RequestLoggingInterceptor());
+    }
+
+    /**
+     * Configure path matching.
+     */
+    @Override
+    public void configurePathMatch(org.springframework.web.servlet.config.annotation.PathMatchConfigurer configurer) {
+        configurer.setUseTrailingSlashMatch(false);
+    }
+
+    /**
+     * Add custom formatters and converters.
+     */
+    @Override
+    public void addFormatters(org.springframework.format.FormatterRegistry registry) {
+        // Add custom formatters here
+        // Example: registry.addFormatter(new CustomDateFormatter());
+    }
+}
+
+/**
+ * Aspect configuration for cross-cutting concerns.
+ *
+ * @author Generated
+ * @version 1.0
+ */
+@Configuration
+@org.springframework.context.annotation.EnableAspectJAutoProxy
+class AspectConfiguration {
+
+    /**
+     * Logging aspect for method execution.
+     */
+    @Bean
+    public org.aspectj.lang.annotation.Aspect loggingAspect() {
+        return new LoggingAspect();
+    }
+
+    /**
+     * Performance monitoring aspect.
+     */
+    @Bean
+    public org.aspectj.lang.annotation.Aspect performanceAspect() {
+        return new PerformanceAspect();
+    }
+}
+
+/**
+ * Logging aspect for automatic method logging.
+ */
+@org.aspectj.lang.annotation.Aspect
+@org.springframework.stereotype.Component
+class LoggingAspect {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(LoggingAspect.class);
+
+    @org.aspectj.lang.annotation.Around("execution(* {{PACKAGE_NAME}}.service..*(..))")
+    public Object logServiceMethods(org.aspectj.lang.ProceedingJoinPoint joinPoint) throws Throwable {
+        String methodName = joinPoint.getSignature().toShortString();
+        log.debug("Entering method: {}", methodName);
+
+        long startTime = System.currentTimeMillis();
+        try {
+            Object result = joinPoint.proceed();
+            long duration = System.currentTimeMillis() - startTime;
+            log.debug("Exiting method: {} ({}ms)", methodName, duration);
+            return result;
+        } catch (Exception e) {
+            log.error("Exception in method: {} - {}", methodName, e.getMessage());
+            throw e;
+        }
+    }
+}
+
+/**
+ * Performance monitoring aspect.
+ */
+@org.aspectj.lang.annotation.Aspect
+@org.springframework.stereotype.Component
+class PerformanceAspect {
+
+    private static final org.slf4j.Logger log = org.slf4j.LoggerFactory.getLogger(PerformanceAspect.class);
+    private static final long SLOW_THRESHOLD_MS = 1000; // Log if method takes longer than 1 second
+
+    @org.aspectj.lang.annotation.Around("execution(* {{PACKAGE_NAME}}..*(..))")
+    public Object monitorPerformance(org.aspectj.lang.ProceedingJoinPoint joinPoint) throws Throwable {
+        long startTime = System.currentTimeMillis();
+        Object result = joinPoint.proceed();
+        long duration = System.currentTimeMillis() - startTime;
+
+        if (duration > SLOW_THRESHOLD_MS) {
+            log.warn("Slow method detected: {} took {}ms",
+                    joinPoint.getSignature().toShortString(), duration);
+        }
+
+        return result;
+    }
+}

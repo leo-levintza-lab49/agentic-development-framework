@@ -1,0 +1,247 @@
+# Production Environment Values Example
+# This file demonstrates production-ready configuration
+
+nameOverride: ""
+fullnameOverride: "production-app"
+
+# High availability configuration
+replicaCount: 3
+
+# Production container image
+image:
+  repository: myregistry.azurecr.io/production-app
+  pullPolicy: IfNotPresent
+  tag: "1.2.3"
+
+imagePullSecrets:
+  - name: acr-secret
+
+# Service Account with IRSA/Workload Identity
+serviceAccount:
+  create: true
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/production-app-role
+  name: "production-app-sa"
+
+# Production pod annotations
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8080"
+  prometheus.io/path: "/metrics"
+  vault.hashicorp.com/agent-inject: "true"
+  vault.hashicorp.com/role: "production-app"
+
+# Security context
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+
+# Ingress with ALB
+ingress:
+  enabled: true
+  className: "alb"
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
+    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:us-east-1:123456789012:certificate/xxx
+    alb.ingress.kubernetes.io/healthcheck-path: /health
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: '15'
+    alb.ingress.kubernetes.io/success-codes: '200'
+    alb.ingress.kubernetes.io/group.name: production-apps
+  hosts:
+    - host: app.production.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: app-tls-cert
+      hosts:
+        - app.production.example.com
+
+# Production resource limits
+resources:
+  limits:
+    cpu: 2000m
+    memory: 4Gi
+  requests:
+    cpu: 1000m
+    memory: 2Gi
+
+# Autoscaling enabled
+autoscaling:
+  enabled: true
+  minReplicas: 3
+  maxReplicas: 20
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+# Node affinity for production node pool
+nodeSelector:
+  workload-type: production
+  instance-size: large
+
+# Tolerations for dedicated nodes
+tolerations:
+  - key: "production"
+    operator: "Equal"
+    value: "true"
+    effect: "NoSchedule"
+
+# Pod anti-affinity for high availability
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - production-app
+          topologyKey: kubernetes.io/hostname
+
+# Production health checks
+livenessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 60
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+# Environment variables
+env:
+  - name: APP_ENV
+    value: production
+  - name: LOG_LEVEL
+    value: info
+  - name: NODE_ENV
+    value: production
+  - name: ENABLE_PROFILING
+    value: "false"
+
+# Environment from ConfigMap and Secret
+envFrom:
+  - configMapRef:
+      name: production-app-config
+  - secretRef:
+      name: production-app-secrets
+
+# Temporary volume for writable filesystem
+volumes:
+  - name: tmp
+    emptyDir: {}
+  - name: cache
+    emptyDir: {}
+
+volumeMounts:
+  - name: tmp
+    mountPath: /tmp
+  - name: cache
+    mountPath: /app/cache
+
+# ConfigMap with production settings
+configMap:
+  enabled: true
+  data:
+    config.yaml: |
+      server:
+        port: 8080
+        host: 0.0.0.0
+        timeout: 30s
+      database:
+        pool_size: 20
+        max_connections: 100
+      cache:
+        ttl: 3600
+        max_size: 1000
+      features:
+        new_ui: true
+        beta_features: false
+      logging:
+        level: info
+        format: json
+
+# Secret management (data stored in external secret manager)
+secret:
+  enabled: false  # Using external secret manager
+
+# Pod Disruption Budget for high availability
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 2
+
+# Network Policy for security
+networkPolicy:
+  enabled: true
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+      - namespaceSelector:
+          matchLabels:
+            name: ingress-nginx
+      - namespaceSelector:
+          matchLabels:
+            name: production
+      ports:
+      - protocol: TCP
+        port: 8080
+  egress:
+    - to:
+      - namespaceSelector: {}
+      ports:
+      - protocol: TCP
+        port: 443
+    - to:
+      - namespaceSelector: {}
+      ports:
+      - protocol: TCP
+        port: 5432  # PostgreSQL
+
+# Metrics and monitoring
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+    scrapeTimeout: 10s
+
+# Additional labels
+labels:
+  environment: production
+  team: platform
+  cost-center: engineering
+  compliance: pci-dss

@@ -1,0 +1,394 @@
+package {{PACKAGE_NAME}}.service;
+
+import {{PACKAGE_NAME}}.domain.entity.{{ENTITY_NAME}};
+import {{PACKAGE_NAME}}.dto.{{ENTITY_NAME}}Request;
+import {{PACKAGE_NAME}}.dto.{{ENTITY_NAME}}Response;
+import {{PACKAGE_NAME}}.exception.EntityNotFoundException;
+import {{PACKAGE_NAME}}.exception.BusinessException;
+import {{PACKAGE_NAME}}.mapper.{{ENTITY_NAME}}Mapper;
+import {{PACKAGE_NAME}}.repository.{{REPOSITORY_NAME}};
+import {{PACKAGE_NAME}}.service.impl.{{SERVICE_NAME}}Impl;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+
+import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+
+/**
+ * Unit tests for {{SERVICE_NAME}}.
+ * Tests service layer business logic with mocked dependencies.
+ *
+ * @author Generated
+ * @version 1.0
+ */
+@ExtendWith(MockitoExtension.class)
+@DisplayName("{{SERVICE_NAME}} Unit Tests")
+class {{TEST_CLASS}} {
+
+    @Mock
+    private {{REPOSITORY_NAME}} repository;
+
+    @Mock
+    private {{ENTITY_NAME}}Mapper mapper;
+
+    @InjectMocks
+    private {{SERVICE_NAME}}Impl service;
+
+    private {{ENTITY_NAME}} entity;
+    private {{ENTITY_NAME}}Request request;
+    private {{ENTITY_NAME}}Response response;
+    private Long entityId;
+
+    @BeforeEach
+    void setUp() {
+        entityId = 1L;
+
+        // Initialize test data
+        entity = {{ENTITY_NAME}}.builder()
+                .id(entityId)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .deleted(false)
+                // Add entity-specific fields here
+                .build();
+
+        request = {{ENTITY_NAME}}Request.builder()
+                // Add request-specific fields here
+                .build();
+
+        response = {{ENTITY_NAME}}Response.builder()
+                .id(entityId)
+                .createdAt(entity.getCreatedAt())
+                .updatedAt(entity.getUpdatedAt())
+                .deleted(false)
+                // Add response-specific fields here
+                .build();
+    }
+
+    @Test
+    @DisplayName("Should create {{ENTITY_NAME}} successfully")
+    void testCreate_Success() {
+        // Given
+        when(mapper.toEntity(request)).thenReturn(entity);
+        when(repository.save(entity)).thenReturn(entity);
+        when(mapper.toResponse(entity)).thenReturn(response);
+
+        // When
+        {{ENTITY_NAME}}Response result = service.create(request);
+
+        // Then
+        assertThat(result).isNotNull();
+        assertThat(result.getId()).isEqualTo(entityId);
+        verify(repository).save(entity);
+        verify(mapper).toEntity(request);
+        verify(mapper).toResponse(entity);
+    }
+
+    @Test
+    @DisplayName("Should throw exception when creating with invalid data")
+    void testCreate_InvalidData() {
+        // Given
+        {{ENTITY_NAME}}Request invalidRequest = {{ENTITY_NAME}}Request.builder().build();
+
+        // When/Then
+        // Add specific validation tests based on your business rules
+        // Example: assertThatThrownBy(() -> service.create(invalidRequest))
+        //              .isInstanceOf(BusinessException.class);
+    }
+
+    @Test
+    @DisplayName("Should find {{ENTITY_NAME}} by ID successfully")
+    void testFindById_Success() {
+        // Given
+        when(repository.findByIdAndNotDeleted(entityId)).thenReturn(Optional.of(entity));
+        when(mapper.toResponse(entity)).thenReturn(response);
+
+        // When
+        {{ENTITY_NAME}}Response result = service.findById(entityId);
+
+        // Then
+        assertThat(result).isNotNull();
+        assertThat(result.getId()).isEqualTo(entityId);
+        verify(repository).findByIdAndNotDeleted(entityId);
+        verify(mapper).toResponse(entity);
+    }
+
+    @Test
+    @DisplayName("Should throw EntityNotFoundException when entity not found")
+    void testFindById_NotFound() {
+        // Given
+        when(repository.findByIdAndNotDeleted(entityId)).thenReturn(Optional.empty());
+
+        // When/Then
+        assertThatThrownBy(() -> service.findById(entityId))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessageContaining("{{ENTITY_NAME}} not found");
+
+        verify(repository).findByIdAndNotDeleted(entityId);
+        verify(mapper, never()).toResponse(any());
+    }
+
+    @Test
+    @DisplayName("Should find all {{ENTITY_NAME}} entities with pagination")
+    void testFindAll_Success() {
+        // Given
+        Pageable pageable = PageRequest.of(0, 10);
+        List<{{ENTITY_NAME}}> entities = Arrays.asList(entity);
+        Page<{{ENTITY_NAME}}> entityPage = new PageImpl<>(entities, pageable, entities.size());
+
+        when(repository.findAllActive(pageable)).thenReturn(entityPage);
+        when(mapper.toResponse(entity)).thenReturn(response);
+
+        // When
+        Page<{{ENTITY_NAME}}Response> result = service.findAllActive(pageable);
+
+        // Then
+        assertThat(result).isNotNull();
+        assertThat(result.getContent()).hasSize(1);
+        assertThat(result.getContent().get(0).getId()).isEqualTo(entityId);
+        verify(repository).findAllActive(pageable);
+    }
+
+    @Test
+    @DisplayName("Should update {{ENTITY_NAME}} successfully")
+    void testUpdate_Success() {
+        // Given
+        when(repository.findByIdAndNotDeleted(entityId)).thenReturn(Optional.of(entity));
+        when(repository.save(entity)).thenReturn(entity);
+        when(mapper.toResponse(entity)).thenReturn(response);
+        doNothing().when(mapper).updateEntityFromRequest(request, entity);
+
+        // When
+        {{ENTITY_NAME}}Response result = service.update(entityId, request);
+
+        // Then
+        assertThat(result).isNotNull();
+        assertThat(result.getId()).isEqualTo(entityId);
+        verify(repository).findByIdAndNotDeleted(entityId);
+        verify(mapper).updateEntityFromRequest(request, entity);
+        verify(repository).save(entity);
+        verify(mapper).toResponse(entity);
+    }
+
+    @Test
+    @DisplayName("Should throw EntityNotFoundException when updating non-existent entity")
+    void testUpdate_NotFound() {
+        // Given
+        when(repository.findByIdAndNotDeleted(entityId)).thenReturn(Optional.empty());
+
+        // When/Then
+        assertThatThrownBy(() -> service.update(entityId, request))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessageContaining("{{ENTITY_NAME}} not found");
+
+        verify(repository).findByIdAndNotDeleted(entityId);
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Should partially update {{ENTITY_NAME}} successfully")
+    void testPartialUpdate_Success() {
+        // Given
+        when(repository.findByIdAndNotDeleted(entityId)).thenReturn(Optional.of(entity));
+        when(repository.save(entity)).thenReturn(entity);
+        when(mapper.toResponse(entity)).thenReturn(response);
+        doNothing().when(mapper).partialUpdateEntityFromRequest(request, entity);
+
+        // When
+        {{ENTITY_NAME}}Response result = service.partialUpdate(entityId, request);
+
+        // Then
+        assertThat(result).isNotNull();
+        assertThat(result.getId()).isEqualTo(entityId);
+        verify(repository).findByIdAndNotDeleted(entityId);
+        verify(mapper).partialUpdateEntityFromRequest(request, entity);
+        verify(repository).save(entity);
+    }
+
+    @Test
+    @DisplayName("Should delete {{ENTITY_NAME}} successfully (soft delete)")
+    void testDelete_Success() {
+        // Given
+        when(repository.findByIdAndNotDeleted(entityId)).thenReturn(Optional.of(entity));
+        when(repository.save(entity)).thenReturn(entity);
+
+        // When
+        service.delete(entityId);
+
+        // Then
+        verify(repository).findByIdAndNotDeleted(entityId);
+        verify(repository).save(entity);
+        assertThat(entity.getDeleted()).isTrue();
+    }
+
+    @Test
+    @DisplayName("Should throw EntityNotFoundException when deleting non-existent entity")
+    void testDelete_NotFound() {
+        // Given
+        when(repository.findByIdAndNotDeleted(entityId)).thenReturn(Optional.empty());
+
+        // When/Then
+        assertThatThrownBy(() -> service.delete(entityId))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessageContaining("{{ENTITY_NAME}} not found");
+
+        verify(repository).findByIdAndNotDeleted(entityId);
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Should restore soft-deleted {{ENTITY_NAME}} successfully")
+    void testRestore_Success() {
+        // Given
+        entity.setDeleted(true);
+        when(repository.findById(entityId)).thenReturn(Optional.of(entity));
+        when(repository.save(entity)).thenReturn(entity);
+        when(mapper.toResponse(entity)).thenReturn(response);
+
+        // When
+        {{ENTITY_NAME}}Response result = service.restore(entityId);
+
+        // Then
+        assertThat(result).isNotNull();
+        assertThat(entity.getDeleted()).isFalse();
+        verify(repository).findById(entityId);
+        verify(repository).save(entity);
+    }
+
+    @Test
+    @DisplayName("Should throw BusinessException when restoring non-deleted entity")
+    void testRestore_NotDeleted() {
+        // Given
+        entity.setDeleted(false);
+        when(repository.findById(entityId)).thenReturn(Optional.of(entity));
+
+        // When/Then
+        assertThatThrownBy(() -> service.restore(entityId))
+                .isInstanceOf(BusinessException.class)
+                .hasMessageContaining("is not deleted");
+
+        verify(repository).findById(entityId);
+        verify(repository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("Should check existence of {{ENTITY_NAME}}")
+    void testExists() {
+        // Given
+        when(repository.existsByIdAndNotDeleted(entityId)).thenReturn(true);
+
+        // When
+        boolean exists = service.exists(entityId);
+
+        // Then
+        assertThat(exists).isTrue();
+        verify(repository).existsByIdAndNotDeleted(entityId);
+    }
+
+    @Test
+    @DisplayName("Should count active {{ENTITY_NAME}} entities")
+    void testCountActive() {
+        // Given
+        long expectedCount = 10L;
+        when(repository.countActive()).thenReturn(expectedCount);
+
+        // When
+        long count = service.countActive();
+
+        // Then
+        assertThat(count).isEqualTo(expectedCount);
+        verify(repository).countActive();
+    }
+
+    @Test
+    @DisplayName("Should find entities created after specific date")
+    void testFindCreatedAfter_Success() {
+        // Given
+        LocalDateTime date = LocalDateTime.now().minusDays(7);
+        Pageable pageable = PageRequest.of(0, 10);
+        List<{{ENTITY_NAME}}> entities = Arrays.asList(entity);
+        Page<{{ENTITY_NAME}}> entityPage = new PageImpl<>(entities, pageable, entities.size());
+
+        when(repository.findByCreatedAtAfterAndDeletedFalse(date, pageable)).thenReturn(entityPage);
+        when(mapper.toResponse(entity)).thenReturn(response);
+
+        // When
+        Page<{{ENTITY_NAME}}Response> result = service.findCreatedAfter(date, pageable);
+
+        // Then
+        assertThat(result).isNotNull();
+        assertThat(result.getContent()).hasSize(1);
+        verify(repository).findByCreatedAtAfterAndDeletedFalse(date, pageable);
+    }
+
+    @Test
+    @DisplayName("Should bulk create {{ENTITY_NAME}} entities")
+    void testBulkCreate_Success() {
+        // Given
+        List<{{ENTITY_NAME}}Request> requests = Arrays.asList(request, request);
+        List<{{ENTITY_NAME}}> entities = Arrays.asList(entity, entity);
+        List<{{ENTITY_NAME}}Response> responses = Arrays.asList(response, response);
+
+        when(mapper.toEntity(any({{ENTITY_NAME}}Request.class))).thenReturn(entity);
+        when(repository.saveAll(anyList())).thenReturn(entities);
+        when(mapper.toResponse(any({{ENTITY_NAME}}.class))).thenReturn(response);
+
+        // When
+        List<{{ENTITY_NAME}}Response> result = service.bulkCreate(requests);
+
+        // Then
+        assertThat(result).hasSize(2);
+        verify(repository).saveAll(anyList());
+    }
+
+    @Test
+    @DisplayName("Should bulk delete {{ENTITY_NAME}} entities")
+    void testBulkDelete_Success() {
+        // Given
+        List<Long> ids = Arrays.asList(1L, 2L);
+        List<{{ENTITY_NAME}}> entities = Arrays.asList(entity, entity);
+
+        when(repository.findAllById(ids)).thenReturn(entities);
+        when(repository.saveAll(entities)).thenReturn(entities);
+
+        // When
+        service.bulkDelete(ids);
+
+        // Then
+        verify(repository).findAllById(ids);
+        verify(repository).saveAll(entities);
+    }
+
+    @Test
+    @DisplayName("Should throw exception when bulk delete with missing entities")
+    void testBulkDelete_SomeNotFound() {
+        // Given
+        List<Long> ids = Arrays.asList(1L, 2L, 3L);
+        List<{{ENTITY_NAME}}> entities = Arrays.asList(entity, entity); // Only 2 found
+
+        when(repository.findAllById(ids)).thenReturn(entities);
+
+        // When/Then
+        assertThatThrownBy(() -> service.bulkDelete(ids))
+                .isInstanceOf(EntityNotFoundException.class)
+                .hasMessageContaining("not found for bulk delete");
+
+        verify(repository).findAllById(ids);
+        verify(repository, never()).saveAll(any());
+    }
+}

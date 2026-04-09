@@ -1,0 +1,167 @@
+package {{PACKAGE_NAME}}.service;
+
+import {{PACKAGE_NAME}}.dto.{{ENTITY_NAME}}Request;
+import {{PACKAGE_NAME}}.dto.{{ENTITY_NAME}}Response;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+/**
+ * Service interface for {{ENTITY_NAME}} business logic.
+ * Defines contract for CRUD operations and business methods.
+ *
+ * @author Generated
+ * @version 1.0
+ */
+public interface {{SERVICE_NAME}} {
+
+    /**
+     * Create a new {{ENTITY_NAME}}.
+     *
+     * @param request the request DTO containing entity data
+     * @return the created entity as a response DTO
+     * @throws IllegalArgumentException if request validation fails
+     */
+    {{ENTITY_NAME}}Response create({{ENTITY_NAME}}Request request);
+
+    /**
+     * Retrieve a {{ENTITY_NAME}} by its identifier.
+     *
+     * @param id the entity identifier
+     * @return the entity as a response DTO
+     * @throws javax.persistence.EntityNotFoundException if entity not found
+     */
+    {{ENTITY_NAME}}Response findById(Long id);
+
+    /**
+     * Retrieve all {{ENTITY_NAME}} entities with pagination.
+     *
+     * @param pageable pagination parameters
+     * @return page of entity response DTOs
+     */
+    Page<{{ENTITY_NAME}}Response> findAll(Pageable pageable);
+
+    /**
+     * Retrieve all active (non-deleted) {{ENTITY_NAME}} entities.
+     *
+     * @param pageable pagination parameters
+     * @return page of active entity response DTOs
+     */
+    Page<{{ENTITY_NAME}}Response> findAllActive(Pageable pageable);
+
+    /**
+     * Update an existing {{ENTITY_NAME}}.
+     *
+     * @param id the entity identifier
+     * @param request the request DTO containing updated data
+     * @return the updated entity as a response DTO
+     * @throws javax.persistence.EntityNotFoundException if entity not found
+     * @throws IllegalArgumentException if request validation fails
+     * @throws org.springframework.orm.ObjectOptimisticLockingFailureException if version mismatch
+     */
+    {{ENTITY_NAME}}Response update(Long id, {{ENTITY_NAME}}Request request);
+
+    /**
+     * Partially update an existing {{ENTITY_NAME}}.
+     * Only updates fields that are not null in the request.
+     *
+     * @param id the entity identifier
+     * @param request the request DTO containing partial data
+     * @return the updated entity as a response DTO
+     * @throws javax.persistence.EntityNotFoundException if entity not found
+     */
+    {{ENTITY_NAME}}Response partialUpdate(Long id, {{ENTITY_NAME}}Request request);
+
+    /**
+     * Soft delete a {{ENTITY_NAME}} by marking it as deleted.
+     *
+     * @param id the entity identifier
+     * @throws javax.persistence.EntityNotFoundException if entity not found
+     */
+    void delete(Long id);
+
+    /**
+     * Permanently delete a {{ENTITY_NAME}}.
+     * Use with caution - this operation cannot be reversed.
+     *
+     * @param id the entity identifier
+     * @throws javax.persistence.EntityNotFoundException if entity not found
+     */
+    void hardDelete(Long id);
+
+    /**
+     * Restore a soft-deleted {{ENTITY_NAME}}.
+     *
+     * @param id the entity identifier
+     * @return the restored entity as a response DTO
+     * @throws javax.persistence.EntityNotFoundException if entity not found
+     */
+    {{ENTITY_NAME}}Response restore(Long id);
+
+    /**
+     * Check if a {{ENTITY_NAME}} exists by identifier.
+     *
+     * @param id the entity identifier
+     * @return true if entity exists and is not deleted
+     */
+    boolean exists(Long id);
+
+    /**
+     * Count all active {{ENTITY_NAME}} entities.
+     *
+     * @return count of active entities
+     */
+    long countActive();
+
+    /**
+     * Retrieve entities created after a specific date.
+     *
+     * @param date the cutoff date
+     * @param pageable pagination parameters
+     * @return page of entity response DTOs
+     */
+    Page<{{ENTITY_NAME}}Response> findCreatedAfter(LocalDateTime date, Pageable pageable);
+
+    /**
+     * Retrieve entities updated after a specific date.
+     *
+     * @param date the cutoff date
+     * @param pageable pagination parameters
+     * @return page of entity response DTOs
+     */
+    Page<{{ENTITY_NAME}}Response> findUpdatedAfter(LocalDateTime date, Pageable pageable);
+
+    /**
+     * Bulk create multiple {{ENTITY_NAME}} entities.
+     *
+     * @param requests list of request DTOs
+     * @return list of created entity response DTOs
+     * @throws IllegalArgumentException if any request validation fails
+     */
+    List<{{ENTITY_NAME}}Response> bulkCreate(List<{{ENTITY_NAME}}Request> requests);
+
+    /**
+     * Bulk delete multiple {{ENTITY_NAME}} entities (soft delete).
+     *
+     * @param ids list of entity identifiers
+     */
+    void bulkDelete(List<Long> ids);
+
+    /*
+     * Add custom business methods here based on your domain requirements:
+     *
+     * // Business logic example
+     * {{ENTITY_NAME}}Response processEntity(Long id, ProcessRequest request);
+     *
+     * // Search with filters
+     * Page<{{ENTITY_NAME}}Response> search(SearchCriteria criteria, Pageable pageable);
+     *
+     * // Statistics or aggregation
+     * EntityStatistics getStatistics();
+     *
+     * // Complex queries
+     * List<{{ENTITY_NAME}}Response> findByComplexCriteria(CustomCriteria criteria);
+     */
+}

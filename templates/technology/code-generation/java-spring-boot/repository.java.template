@@ -1,0 +1,135 @@
+package {{PACKAGE_NAME}}.repository;
+
+import {{PACKAGE_NAME}}.domain.entity.{{ENTITY_NAME}};
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import org.springframework.stereotype.Repository;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+
+/**
+ * Repository interface for {{ENTITY_NAME}} entity.
+ * Provides CRUD operations and custom query methods.
+ *
+ * @author Generated
+ * @version 1.0
+ */
+@Repository
+public interface {{REPOSITORY_NAME}} extends JpaRepository<{{ENTITY_NAME}}, Long>,
+                                               JpaSpecificationExecutor<{{ENTITY_NAME}}> {
+
+    /**
+     * Find all non-deleted entities.
+     *
+     * @param pageable pagination information
+     * @return page of active entities
+     */
+    @Query("SELECT e FROM {{ENTITY_NAME}} e WHERE e.deleted = false")
+    Page<{{ENTITY_NAME}}> findAllActive(Pageable pageable);
+
+    /**
+     * Find entity by id excluding soft-deleted records.
+     *
+     * @param id entity identifier
+     * @return optional containing the entity if found and not deleted
+     */
+    @Query("SELECT e FROM {{ENTITY_NAME}} e WHERE e.id = :id AND e.deleted = false")
+    Optional<{{ENTITY_NAME}}> findByIdAndNotDeleted(@Param("id") Long id);
+
+    /**
+     * Find all entities created after a specific date.
+     *
+     * @param date the cutoff date
+     * @param pageable pagination information
+     * @return page of entities created after the specified date
+     */
+    Page<{{ENTITY_NAME}}> findByCreatedAtAfterAndDeletedFalse(LocalDateTime date, Pageable pageable);
+
+    /**
+     * Find all entities updated after a specific date.
+     *
+     * @param date the cutoff date
+     * @param pageable pagination information
+     * @return page of entities updated after the specified date
+     */
+    Page<{{ENTITY_NAME}}> findByUpdatedAtAfterAndDeletedFalse(LocalDateTime date, Pageable pageable);
+
+    /**
+     * Count all non-deleted entities.
+     *
+     * @return count of active entities
+     */
+    @Query("SELECT COUNT(e) FROM {{ENTITY_NAME}} e WHERE e.deleted = false")
+    long countActive();
+
+    /**
+     * Check if an entity exists by id and is not deleted.
+     *
+     * @param id entity identifier
+     * @return true if entity exists and is not deleted
+     */
+    @Query("SELECT CASE WHEN COUNT(e) > 0 THEN true ELSE false END FROM {{ENTITY_NAME}} e WHERE e.id = :id AND e.deleted = false")
+    boolean existsByIdAndNotDeleted(@Param("id") Long id);
+
+    /**
+     * Soft delete an entity by marking it as deleted.
+     *
+     * @param id entity identifier
+     * @return number of entities updated
+     */
+    @Modifying
+    @Query("UPDATE {{ENTITY_NAME}} e SET e.deleted = true, e.updatedAt = CURRENT_TIMESTAMP WHERE e.id = :id")
+    int softDeleteById(@Param("id") Long id);
+
+    /**
+     * Restore a soft-deleted entity.
+     *
+     * @param id entity identifier
+     * @return number of entities updated
+     */
+    @Modifying
+    @Query("UPDATE {{ENTITY_NAME}} e SET e.deleted = false, e.updatedAt = CURRENT_TIMESTAMP WHERE e.id = :id")
+    int restoreById(@Param("id") Long id);
+
+    /**
+     * Permanently delete all soft-deleted entities older than specified date.
+     * Use with caution - this operation cannot be reversed.
+     *
+     * @param date cutoff date
+     * @return number of entities deleted
+     */
+    @Modifying
+    @Query("DELETE FROM {{ENTITY_NAME}} e WHERE e.deleted = true AND e.updatedAt < :date")
+    int purgeDeletedBefore(@Param("date") LocalDateTime date);
+
+    /*
+     * Custom query method examples for {{REPOSITORY_NAME}}:
+     *
+     * // Find by specific field
+     * Optional<{{ENTITY_NAME}}> findByNameAndDeletedFalse(String name);
+     *
+     * // Find by multiple fields
+     * List<{{ENTITY_NAME}}> findByStatusAndActiveAndDeletedFalse(Status status, Boolean active);
+     *
+     * // Find with custom query
+     * @Query("SELECT e FROM {{ENTITY_NAME}} e WHERE e.amount > :amount AND e.deleted = false")
+     * List<{{ENTITY_NAME}}> findByAmountGreaterThan(@Param("amount") BigDecimal amount);
+     *
+     * // Find with native query
+     * @Query(value = "SELECT * FROM {{TABLE_NAME}} WHERE status = :status AND deleted = false", nativeQuery = true)
+     * List<{{ENTITY_NAME}}> findByStatusNative(@Param("status") String status);
+     *
+     * // Count with condition
+     * long countByStatusAndDeletedFalse(Status status);
+     *
+     * // Exists check
+     * boolean existsByEmailAndDeletedFalse(String email);
+     */
+}

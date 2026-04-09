@@ -1,0 +1,232 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Template: Liquibase Master Changelog
+     Description: Master changelog file that includes all database changesets
+     Variables: {{PROJECT_NAME}}, {{DATABASE_NAME}}, {{ENVIRONMENT}} -->
+
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:ext="http://www.liquibase.org/xml/ns/dbchangelog-ext"
+    xmlns:pro="http://www.liquibase.org/xml/ns/pro"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd
+        http://www.liquibase.org/xml/ns/dbchangelog-ext
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd
+        http://www.liquibase.org/xml/ns/pro
+        http://www.liquibase.org/xml/ns/pro/liquibase-pro-4.20.xsd">
+
+    <!-- ============================================
+         PROJECT INFORMATION
+         ============================================ -->
+    <property name="project.name" value="{{PROJECT_NAME}}"/>
+    <property name="database.name" value="{{DATABASE_NAME}}"/>
+
+    <!-- ============================================
+         DATABASE PROPERTIES
+         ============================================ -->
+
+    <!-- PostgreSQL-specific properties -->
+    <property name="now" value="now()" dbms="postgresql"/>
+    <property name="autoIncrement" value="true" dbms="postgresql"/>
+    <property name="blob.type" value="bytea" dbms="postgresql"/>
+    <property name="text.type" value="TEXT" dbms="postgresql"/>
+    <property name="uuid.type" value="UUID" dbms="postgresql"/>
+    <property name="json.type" value="JSONB" dbms="postgresql"/>
+
+    <!-- MySQL-specific properties -->
+    <property name="now" value="NOW()" dbms="mysql"/>
+    <property name="autoIncrement" value="true" dbms="mysql"/>
+    <property name="blob.type" value="LONGBLOB" dbms="mysql"/>
+    <property name="text.type" value="TEXT" dbms="mysql"/>
+    <property name="uuid.type" value="VARCHAR(36)" dbms="mysql"/>
+    <property name="json.type" value="JSON" dbms="mysql"/>
+
+    <!-- ============================================
+         ENVIRONMENT-SPECIFIC CONTEXTS
+         ============================================ -->
+
+    <!-- Contexts allow conditional execution of changesets -->
+    <!-- Example usage: <changeSet context="dev,test"> -->
+
+    <!-- ============================================
+         PRECONDITIONS
+         ============================================ -->
+
+    <preConditions>
+        <dbms type="postgresql"/>
+        <!-- <runningAs username="db_admin"/> -->
+    </preConditions>
+
+    <!-- ============================================
+         INITIAL SETUP
+         ============================================ -->
+
+    <!-- Create schema migrations tracking table -->
+    <changeSet id="00000-create-schema-migrations-table" author="system">
+        <preConditions onFail="MARK_RAN">
+            <not>
+                <tableExists tableName="schema_migrations"/>
+            </not>
+        </preConditions>
+
+        <createTable tableName="schema_migrations">
+            <column name="version" type="VARCHAR(255)">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="description" type="TEXT"/>
+            <column name="applied_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="applied_by" type="VARCHAR(255)"/>
+            <column name="execution_time_ms" type="INTEGER"/>
+            <column name="checksum" type="VARCHAR(64)"/>
+        </createTable>
+
+        <rollback>
+            <dropTable tableName="schema_migrations"/>
+        </rollback>
+    </changeSet>
+
+    <!-- Create common functions and triggers -->
+    <changeSet id="00001-create-common-functions" author="system">
+        <sql splitStatements="false">
+            -- Function to automatically update updated_at timestamp
+            CREATE OR REPLACE FUNCTION update_updated_at_column()
+            RETURNS TRIGGER AS $$
+            BEGIN
+                NEW.updated_at = CURRENT_TIMESTAMP;
+                RETURN NEW;
+            END;
+            $$ language 'plpgsql';
+
+            -- Function for soft delete
+            CREATE OR REPLACE FUNCTION soft_delete()
+            RETURNS TRIGGER AS $$
+            BEGIN
+                NEW.deleted_at = CURRENT_TIMESTAMP;
+                RETURN NEW;
+            END;
+            $$ language 'plpgsql';
+        </sql>
+
+        <rollback>
+            DROP FUNCTION IF EXISTS update_updated_at_column() CASCADE;
+            DROP FUNCTION IF EXISTS soft_delete() CASCADE;
+        </rollback>
+    </changeSet>
+
+    <!-- ============================================
+         FOUNDATION SCHEMA (Version 1.0.x)
+         ============================================ -->
+
+    <!-- Base tables and core functionality -->
+    <include file="db/changelog/v1.0/01-create-users-table.xml" relativeToChangelogFile="false"/>
+    <include file="db/changelog/v1.0/02-create-roles-table.xml" relativeToChangelogFile="false"/>
+    <include file="db/changelog/v1.0/03-create-permissions-table.xml" relativeToChangelogFile="false"/>
+    <include file="db/changelog/v1.0/04-create-audit-log-table.xml" relativeToChangelogFile="false"/>
+
+    <!-- ============================================
+         FEATURE MODULES (Version 1.1.x)
+         ============================================ -->
+
+    <!-- Add domain-specific tables -->
+    <!-- <include file="db/changelog/v1.1/01-create-products-table.xml" relativeToChangelogFile="false"/> -->
+    <!-- <include file="db/changelog/v1.1/02-create-orders-table.xml" relativeToChangelogFile="false"/> -->
+    <!-- <include file="db/changelog/v1.1/03-create-order-items-table.xml" relativeToChangelogFile="false"/> -->
+
+    <!-- ============================================
+         ENHANCEMENTS (Version 1.2.x)
+         ============================================ -->
+
+    <!-- Schema modifications and optimizations -->
+    <!-- <include file="db/changelog/v1.2/01-add-user-preferences.xml" relativeToChangelogFile="false"/> -->
+    <!-- <include file="db/changelog/v1.2/02-add-indexes-for-performance.xml" relativeToChangelogFile="false"/> -->
+
+    <!-- ============================================
+         BUG FIXES AND PATCHES (Version 1.3.x)
+         ============================================ -->
+
+    <!-- <include file="db/changelog/v1.3/01-fix-foreign-key-constraints.xml" relativeToChangelogFile="false"/> -->
+    <!-- <include file="db/changelog/v1.3/02-data-migration-cleanup.xml" relativeToChangelogFile="false"/> -->
+
+    <!-- ============================================
+         REFERENCE DATA / SEED DATA
+         ============================================ -->
+
+    <!-- Load reference data (contexts control environment) -->
+    <include file="db/changelog/seed/01-reference-data.xml" relativeToChangelogFile="false" context="!prod"/>
+    <include file="db/changelog/seed/02-test-data.xml" relativeToChangelogFile="false" context="dev,test"/>
+
+    <!-- ============================================
+         VIEWS AND MATERIALIZED VIEWS
+         ============================================ -->
+
+    <!-- <include file="db/changelog/views/01-create-reporting-views.xml" relativeToChangelogFile="false"/> -->
+    <!-- <include file="db/changelog/views/02-create-materialized-views.xml" relativeToChangelogFile="false"/> -->
+
+    <!-- ============================================
+         STORED PROCEDURES AND FUNCTIONS
+         ============================================ -->
+
+    <!-- <include file="db/changelog/procedures/01-create-business-logic-functions.xml" relativeToChangelogFile="false"/> -->
+    <!-- <include file="db/changelog/procedures/02-create-analytics-procedures.xml" relativeToChangelogFile="false"/> -->
+
+    <!-- ============================================
+         PERFORMANCE OPTIMIZATIONS
+         ============================================ -->
+
+    <!-- <include file="db/changelog/optimization/01-partition-large-tables.xml" relativeToChangelogFile="false"/> -->
+    <!-- <include file="db/changelog/optimization/02-create-performance-indexes.xml" relativeToChangelogFile="false"/> -->
+
+    <!-- ============================================
+         SECURITY AND PERMISSIONS
+         ============================================ -->
+
+    <!-- <include file="db/changelog/security/01-create-database-roles.xml" relativeToChangelogFile="false"/> -->
+    <!-- <include file="db/changelog/security/02-grant-permissions.xml" relativeToChangelogFile="false"/> -->
+    <!-- <include file="db/changelog/security/03-enable-row-level-security.xml" relativeToChangelogFile="false"/> -->
+
+    <!-- ============================================
+         MONITORING AND MAINTENANCE
+         ============================================ -->
+
+    <changeSet id="99999-create-maintenance-views" author="system">
+        <sql splitStatements="false">
+            -- View to monitor table sizes
+            CREATE OR REPLACE VIEW v_table_sizes AS
+            SELECT
+                schemaname,
+                tablename,
+                pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) AS total_size,
+                pg_size_pretty(pg_relation_size(schemaname||'.'||tablename)) AS table_size,
+                pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename) - pg_relation_size(schemaname||'.'||tablename)) AS index_size,
+                pg_stat_get_live_tuples(pg_class.oid) AS row_count
+            FROM pg_tables
+            JOIN pg_class ON pg_tables.tablename = pg_class.relname
+            WHERE schemaname NOT IN ('pg_catalog', 'information_schema')
+            ORDER BY pg_total_relation_size(schemaname||'.'||tablename) DESC;
+
+            -- View to monitor index usage
+            CREATE OR REPLACE VIEW v_index_usage AS
+            SELECT
+                schemaname,
+                tablename,
+                indexname,
+                idx_scan,
+                pg_size_pretty(pg_relation_size(indexname::regclass)) AS index_size,
+                CASE
+                    WHEN idx_scan = 0 THEN 'Unused'
+                    WHEN idx_scan < 100 THEN 'Low usage'
+                    ELSE 'Active'
+                END AS usage_status
+            FROM pg_stat_user_indexes
+            ORDER BY idx_scan ASC, pg_relation_size(indexname::regclass) DESC;
+        </sql>
+
+        <rollback>
+            DROP VIEW IF EXISTS v_table_sizes;
+            DROP VIEW IF EXISTS v_index_usage;
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

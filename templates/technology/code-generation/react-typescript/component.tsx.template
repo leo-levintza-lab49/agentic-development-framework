@@ -1,0 +1,48 @@
+import React, { useState, useEffect } from 'react';
+
+/**
+ * Props for the {{COMPONENT_NAME}} component
+ */
+interface {{COMPONENT_NAME}}Props {
+  {{PROPS}}
+}
+
+/**
+ * {{COMPONENT_NAME}} component
+ *
+ * @description Add component description here
+ */
+export const {{COMPONENT_NAME}}: React.FC<{{COMPONENT_NAME}}Props> = ({
+  {{PROPS}}
+}) => {
+  // State management
+  const [state, setState] = useState<string>('');
+
+  // Side effects
+  useEffect(() => {
+    // Add side effect logic here
+    return () => {
+      // Cleanup logic here
+    };
+  }, []);
+
+  // Event handlers
+  const handleClick = () => {
+    // Handle click logic
+  };
+
+  return (
+    <div
+      className="{{COMPONENT_NAME}}"
+      role="region"
+      aria-label="{{COMPONENT_NAME}}"
+    >
+      <h2>{{COMPONENT_NAME}}</h2>
+      {/* Add component JSX here */}
+    </div>
+  );
+};
+
+{{COMPONENT_NAME}}.displayName = '{{COMPONENT_NAME}}';
+
+export default {{COMPONENT_NAME}};

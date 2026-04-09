@@ -1,0 +1,84 @@
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{CRONJOB_NAME}}
+  labels:
+    app: {{APP_NAME}}
+spec:
+  # Cron schedule (e.g., "0 2 * * *" for daily at 2 AM)
+  schedule: "{{CRON_SCHEDULE}}"
+
+  # Timezone for the schedule (requires Kubernetes 1.25+)
+  timeZone: "{{TIMEZONE}}"
+
+  # Number of successful job history to keep
+  successfulJobsHistoryLimit: {{SUCCESSFUL_JOBS_HISTORY_LIMIT}}
+
+  # Number of failed job history to keep
+  failedJobsHistoryLimit: {{FAILED_JOBS_HISTORY_LIMIT}}
+
+  # Concurrency policy: Allow, Forbid, or Replace
+  concurrencyPolicy: {{CONCURRENCY_POLICY}}
+
+  # Deadline for starting the job if it misses scheduled time (seconds)
+  startingDeadlineSeconds: {{STARTING_DEADLINE_SECONDS}}
+
+  # Suspend execution of CronJob
+  suspend: false
+
+  jobTemplate:
+    metadata:
+      labels:
+        app: {{APP_NAME}}
+        cronjob: {{CRONJOB_NAME}}
+    spec:
+      backoffLimit: {{BACKOFF_LIMIT}}
+      ttlSecondsAfterFinished: {{TTL_SECONDS}}
+      activeDeadlineSeconds: {{ACTIVE_DEADLINE_SECONDS}}
+      template:
+        metadata:
+          labels:
+            app: {{APP_NAME}}
+            cronjob: {{CRONJOB_NAME}}
+        spec:
+          restartPolicy: OnFailure
+          containers:
+          - name: {{CONTAINER_NAME}}
+            image: {{IMAGE}}
+            imagePullPolicy: {{IMAGE_PULL_POLICY}}
+            command: {{COMMAND}}
+            args: {{ARGS}}
+            env:
+            {{ENV_VARS}}
+            resources:
+              requests:
+                cpu: {{CPU_REQUEST}}
+                memory: {{MEMORY_REQUEST}}
+              limits:
+                cpu: {{CPU_LIMIT}}
+                memory: {{MEMORY_LIMIT}}
+            volumeMounts:
+            {{VOLUME_MOUNTS}}
+          volumes:
+          {{VOLUMES}}
+          {{IMAGE_PULL_SECRETS}}
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: {{RUN_AS_USER}}
+            fsGroup: {{FS_GROUP}}
+
+# Cron schedule examples:
+# "0 * * * *"        - Every hour
+# "*/15 * * * *"     - Every 15 minutes
+# "0 0 * * *"        - Daily at midnight
+# "0 2 * * *"        - Daily at 2 AM
+# "0 0 * * 0"        - Weekly on Sunday at midnight
+# "0 0 1 * *"        - Monthly on the 1st at midnight
+# "0 9 * * 1-5"      - Weekdays at 9 AM
+# "*/30 9-17 * * *"  - Every 30 minutes between 9 AM and 5 PM
+
+# Concurrency policies:
+# Allow:   Allow concurrent jobs
+# Forbid:  Skip new job if previous is still running
+# Replace: Cancel currently running job and replace with new one

@@ -1,0 +1,208 @@
+#!/usr/bin/env bash
+#
+# refresh-aws - Automated AWS Bedrock credential management via Vault
+#
+# This script checks if AWS credentials are about to expire and automatically
+# refreshes them using the sre-tools Vault integration.
+#
+# Usage:
+#   ./scripts/refresh-aws           # Check and refresh if needed
+#   ./scripts/refresh-aws --force   # Force refresh even if valid
+#   ./scripts/refresh-aws --verbose # Show detailed progress
+#
+
+set -euo pipefail
+
+# Configuration
+VAULT_REALM="${VAULT_REALM:-prod}"
+AWS_ROLE="${AWS_ROLE:-developer}"
+AWS_CRED_TTL="${AWS_CRED_TTL:-10080m}"  # 7 days
+TTL_SECONDS=604800  # 7 days = 604800 seconds
+REFRESH_BUFFER=300  # 5 minutes buffer (refresh if expiring in < 5 min)
+EXPIRY_FILE=".aws-creds-expiry"  # Store in current directory
+SRE_TOOLS="${SRE_TOOLS:-/Users/leo.levintza/wrk/sre-tools}"
+
+# Parse flags
+FORCE=false
+VERBOSE=false
+
+for arg in "$@"; do
+    # Only process arguments that start with "--" (skip other args when sourced)
+    if [[ "$arg" =~ ^-- ]]; then
+        case "$arg" in
+            --force)
+                FORCE=true
+                ;;
+            --verbose)
+                VERBOSE=true
+                ;;
+            --help)
+                echo "Usage: $0 [--force] [--verbose] [--help]"
+                echo ""
+                echo "Options:"
+                echo "  --force    Force refresh even if credentials are valid"
+                echo "  --verbose  Show detailed progress"
+                echo "  --help     Show this help message"
+                return 0 2>/dev/null || exit 0
+                ;;
+            *)
+                echo "Unknown option: $arg" >&2
+                echo "Use --help for usage information" >&2
+                return 1 2>/dev/null || exit 1
+                ;;
+        esac
+    fi
+done
+
+# Logging functions
+log_verbose() {
+    if [[ "$VERBOSE" == "true" ]]; then
+        echo "[refresh-aws] $*" >&2
+    fi
+}
+
+log_error() {
+    echo "[refresh-aws ERROR] $*" >&2
+}
+
+# Check if credentials need refresh
+needs_refresh() {
+    log_verbose "Checking if credentials need refresh..."
+
+    # If expiry file doesn't exist, need refresh
+    if [[ ! -f "$EXPIRY_FILE" ]]; then
+        log_verbose "Expiry file not found, refresh needed"
+        return 0
+    fi
+
+    # Read expiration timestamp
+    local expiry_time
+    expiry_time=$(cat "$EXPIRY_FILE")
+
+    # Validate it's a number
+    if ! [[ "$expiry_time" =~ ^[0-9]+$ ]]; then
+        log_verbose "Invalid expiry timestamp, refresh needed"
+        return 0
+    fi
+
+    # Check if expiring soon
+    local current_time
+    current_time=$(date +%s)
+    local time_remaining=$((expiry_time - current_time))
+
+    log_verbose "Time remaining: ${time_remaining}s (${REFRESH_BUFFER}s buffer)"
+
+    if [[ $time_remaining -lt $REFRESH_BUFFER ]]; then
+        log_verbose "Credentials expire in < ${REFRESH_BUFFER}s, refresh needed"
+        return 0
+    fi
+
+    log_verbose "Credentials still valid for ${time_remaining}s"
+    return 1
+}
+
+# Refresh AWS credentials via sre-tools
+refresh_credentials() {
+    log_verbose "Starting credential refresh..."
+
+    # Check prerequisites
+    if [[ ! -d "$SRE_TOOLS" ]]; then
+        log_error "SRE_TOOLS directory not found: $SRE_TOOLS"
+        log_error "Please set SRE_TOOLS environment variable to the sre-tools repo path"
+        return 1
+    fi
+
+    if [[ ! -f "$SRE_TOOLS/scripts/setup.sh" ]]; then
+        log_error "sre-tools setup.sh not found at: $SRE_TOOLS/scripts/setup.sh"
+        return 1
+    fi
+
+    if [[ -z "${GITHUB_AUTH_TOKEN:-}" ]]; then
+        log_error "GITHUB_AUTH_TOKEN not set. Please set it in .env file"
+        return 1
+    fi
+
+    # Check if Vault CLI is available
+    if ! command -v vault &> /dev/null; then
+        log_error "vault CLI not found. Please install it: asdf install"
+        return 1
+    fi
+
+    log_verbose "Sourcing sre-tools setup.sh..."
+    # shellcheck disable=SC1091
+    source "$SRE_TOOLS/scripts/setup.sh"
+
+    # Check if Vault token is valid, if not re-authenticate
+    log_verbose "Checking Vault token..."
+    if ! vault token lookup &> /dev/null; then
+        log_verbose "Vault token expired, re-authenticating..."
+        if [[ "$VERBOSE" == "true" ]]; then
+            sre_vault_init --realm="$VAULT_REALM"
+        else
+            sre_vault_init --realm="$VAULT_REALM" > /dev/null 2>&1
+        fi
+    fi
+
+    # Request AWS credentials from Vault
+    log_verbose "Requesting AWS credentials for role: $AWS_ROLE (TTL: $AWS_CRED_TTL)..."
+    if [[ "$VERBOSE" == "true" ]]; then
+        sre_vault_request_role "$AWS_ROLE" "$AWS_CRED_TTL"
+    else
+        sre_vault_request_role "$AWS_ROLE" "$AWS_CRED_TTL" > /dev/null 2>&1
+    fi
+
+    # Verify credentials were set
+    if [[ -z "${AWS_ACCESS_KEY_ID:-}" ]] || [[ -z "${AWS_SECRET_ACCESS_KEY:-}" ]] || [[ -z "${AWS_SESSION_TOKEN:-}" ]]; then
+        log_error "Failed to obtain AWS credentials"
+        return 1
+    fi
+
+    # Calculate and save expiration time
+    local current_time
+    current_time=$(date +%s)
+    local expiry_time=$((current_time + TTL_SECONDS))
+
+    log_verbose "Credentials expire at: $(date -r "$expiry_time" '+%Y-%m-%d %H:%M:%S')"
+
+    # Save expiration to file (in current directory)
+    echo "$expiry_time" > "$EXPIRY_FILE"
+
+    log_verbose "Credential refresh complete!"
+    return 0
+}
+
+# Main execution
+main() {
+    log_verbose "AWS credential refresh script started"
+
+    # If force flag set, always refresh
+    if [[ "$FORCE" == "true" ]]; then
+        log_verbose "Force flag set, refreshing credentials..."
+        if refresh_credentials; then
+            [[ "$VERBOSE" == "false" ]] && echo "AWS credentials refreshed successfully"
+            return 0
+        else
+            log_error "Failed to refresh credentials"
+            return 1
+        fi
+    fi
+
+    # Check if refresh is needed
+    if needs_refresh; then
+        log_verbose "Refresh needed, proceeding..."
+        if refresh_credentials; then
+            [[ "$VERBOSE" == "false" ]] && echo "AWS credentials refreshed successfully"
+            return 0
+        else
+            log_error "Failed to refresh credentials"
+            return 1
+        fi
+    else
+        log_verbose "Credentials still valid, no refresh needed"
+        # Silent success when credentials are valid
+        return 0
+    fi
+}
+
+# Run main function
+main "$@"

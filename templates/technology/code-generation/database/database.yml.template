@@ -1,0 +1,334 @@
+# Template: Database Configuration
+# Description: Multi-environment database connection settings
+# Variables: {{DB_NAME}}, {{DB_HOST}}, {{DB_PORT}}, {{DB_USER}}, {{PROJECT_NAME}}
+
+# ============================================
+# DATABASE CONFIGURATION
+# ============================================
+#
+# This file contains database connection settings for different environments.
+# Sensitive values should be loaded from environment variables.
+#
+# Environment variables pattern:
+#   - DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD
+#   - JDBC_URL, DATABASE_URL (for full connection strings)
+
+# ============================================
+# DEVELOPMENT ENVIRONMENT
+# ============================================
+development:
+  adapter: postgresql
+  host: ${DB_HOST:-localhost}
+  port: ${DB_PORT:-5432}
+  database: ${DB_NAME:-{{DB_NAME}}_dev}
+  username: ${DB_USER:-{{DB_USER}}}
+  password: ${DB_PASSWORD:-devpassword}
+
+  # Connection pool settings
+  pool:
+    min_size: 2
+    max_size: 10
+    acquire_timeout: 30000  # 30 seconds
+    idle_timeout: 600000    # 10 minutes
+    max_lifetime: 1800000   # 30 minutes
+    validation_timeout: 5000
+
+  # Query settings
+  timeout: 30000  # 30 seconds
+  statement_timeout: 60000  # 60 seconds (PostgreSQL specific)
+
+  # SSL settings
+  ssl:
+    enabled: false
+    mode: disable
+
+  # Logging
+  logging:
+    enabled: true
+    log_queries: true
+    log_slow_queries: true
+    slow_query_threshold: 1000  # Log queries slower than 1 second
+
+  # Schema
+  schema: public
+  search_path: public
+
+  # Connection string format (alternative to individual settings)
+  # url: postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:${DB_PORT}/${DB_NAME}
+
+  # JDBC format (for Java applications)
+  # jdbc_url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${DB_NAME}?currentSchema=public&ssl=false
+
+# ============================================
+# TEST ENVIRONMENT
+# ============================================
+test:
+  adapter: postgresql
+  host: ${DB_HOST:-localhost}
+  port: ${DB_PORT:-5432}
+  database: ${DB_NAME:-{{DB_NAME}}_test}
+  username: ${DB_USER:-{{DB_USER}}_test}
+  password: ${DB_PASSWORD:-testpassword}
+
+  # Connection pool (smaller for tests)
+  pool:
+    min_size: 1
+    max_size: 5
+    acquire_timeout: 30000
+    idle_timeout: 300000
+    max_lifetime: 600000
+    validation_timeout: 3000
+
+  # Query settings
+  timeout: 30000
+  statement_timeout: 30000
+
+  # SSL settings
+  ssl:
+    enabled: false
+    mode: disable
+
+  # Logging
+  logging:
+    enabled: true
+    log_queries: false
+    log_slow_queries: true
+    slow_query_threshold: 500
+
+  # Schema
+  schema: public
+  search_path: public
+
+  # Test-specific settings
+  truncate_on_setup: true
+  seed_data: true
+
+# ============================================
+# STAGING ENVIRONMENT
+# ============================================
+staging:
+  adapter: postgresql
+  host: ${DB_HOST}
+  port: ${DB_PORT:-5432}
+  database: ${DB_NAME:-{{DB_NAME}}_staging}
+  username: ${DB_USER}
+  password: ${DB_PASSWORD}
+
+  # Connection pool
+  pool:
+    min_size: 5
+    max_size: 20
+    acquire_timeout: 30000
+    idle_timeout: 600000
+    max_lifetime: 1800000
+    validation_timeout: 5000
+
+  # Query settings
+  timeout: 30000
+  statement_timeout: 120000  # 2 minutes
+
+  # SSL settings
+  ssl:
+    enabled: true
+    mode: require
+    cert_path: ${DB_SSL_CERT_PATH}
+    key_path: ${DB_SSL_KEY_PATH}
+    ca_path: ${DB_SSL_CA_PATH}
+
+  # Logging
+  logging:
+    enabled: true
+    log_queries: false
+    log_slow_queries: true
+    slow_query_threshold: 2000
+
+  # Schema
+  schema: public
+  search_path: public
+
+  # Performance monitoring
+  monitoring:
+    enabled: true
+    collect_metrics: true
+    metrics_interval: 60000  # 1 minute
+
+# ============================================
+# PRODUCTION ENVIRONMENT
+# ============================================
+production:
+  adapter: postgresql
+  host: ${DB_HOST}
+  port: ${DB_PORT:-5432}
+  database: ${DB_NAME:-{{DB_NAME}}}
+  username: ${DB_USER}
+  password: ${DB_PASSWORD}
+
+  # Connection pool (larger for production load)
+  pool:
+    min_size: 10
+    max_size: 50
+    acquire_timeout: 30000
+    idle_timeout: 600000
+    max_lifetime: 1800000
+    validation_timeout: 5000
+    leak_detection_threshold: 120000  # 2 minutes
+
+  # Query settings
+  timeout: 30000
+  statement_timeout: 180000  # 3 minutes
+  lock_timeout: 10000  # 10 seconds
+
+  # SSL settings (required in production)
+  ssl:
+    enabled: true
+    mode: verify-full
+    cert_path: ${DB_SSL_CERT_PATH}
+    key_path: ${DB_SSL_KEY_PATH}
+    ca_path: ${DB_SSL_CA_PATH}
+
+  # Logging (minimal in production)
+  logging:
+    enabled: true
+    log_queries: false
+    log_slow_queries: true
+    slow_query_threshold: 5000  # 5 seconds
+
+  # Schema
+  schema: public
+  search_path: public
+
+  # Read replica configuration
+  read_replica:
+    enabled: ${DB_READ_REPLICA_ENABLED:-false}
+    host: ${DB_READ_REPLICA_HOST}
+    port: ${DB_READ_REPLICA_PORT:-5432}
+    database: ${DB_NAME}
+    username: ${DB_READ_REPLICA_USER}
+    password: ${DB_READ_REPLICA_PASSWORD}
+    pool:
+      min_size: 5
+      max_size: 30
+
+  # Performance monitoring
+  monitoring:
+    enabled: true
+    collect_metrics: true
+    metrics_interval: 30000  # 30 seconds
+    enable_explain_analyze: false
+
+  # High availability
+  high_availability:
+    enabled: ${DB_HA_ENABLED:-false}
+    failover_timeout: 30000
+    health_check_interval: 5000
+
+  # Connection retry
+  retry:
+    max_attempts: 3
+    backoff_multiplier: 2
+    initial_delay: 1000
+    max_delay: 10000
+
+# ============================================
+# LIQUIBASE CONFIGURATION
+# ============================================
+liquibase:
+  changelog_file: db/changelog/db.changelog-master.xml
+  contexts: ${LIQUIBASE_CONTEXTS:-default}
+  labels: ${LIQUIBASE_LABELS:-}
+  default_schema: public
+  liquibase_schema: liquibase
+
+  # Changeset validation
+  validate_on_migrate: true
+  validate_checksums: true
+
+  # Rollback configuration
+  rollback_on_error: true
+
+  # Tag on successful migration
+  tag_on_migrate: ${LIQUIBASE_TAG_ON_MIGRATE:-false}
+
+  # Performance
+  show_summary: true
+  show_summary_output: UPDATE_SUMMARY
+
+# ============================================
+# DATABASE-SPECIFIC SETTINGS
+# ============================================
+
+# PostgreSQL-specific settings
+postgresql:
+  extensions:
+    - pg_stat_statements  # Query performance tracking
+    - pg_trgm            # Trigram matching for fuzzy search
+    - uuid-ossp          # UUID generation
+    - hstore             # Key-value storage
+    - postgis            # Geospatial data (if needed)
+
+  settings:
+    shared_buffers: ${PG_SHARED_BUFFERS:-256MB}
+    effective_cache_size: ${PG_EFFECTIVE_CACHE_SIZE:-1GB}
+    maintenance_work_mem: ${PG_MAINTENANCE_WORK_MEM:-64MB}
+    checkpoint_completion_target: 0.9
+    wal_buffers: 16MB
+    default_statistics_target: 100
+    random_page_cost: 1.1
+    effective_io_concurrency: 200
+    work_mem: ${PG_WORK_MEM:-4MB}
+    min_wal_size: 1GB
+    max_wal_size: 4GB
+
+# ============================================
+# MIGRATION SETTINGS
+# ============================================
+migrations:
+  directory: db/migrations
+  table: schema_migrations
+
+  # Migration behavior
+  auto_migrate: ${AUTO_MIGRATE:-false}
+  validate_on_startup: true
+  baseline_on_migrate: false
+
+  # Safety checks
+  out_of_order: false
+  allow_missing: false
+
+  # Backup
+  backup_before_migration: ${BACKUP_BEFORE_MIGRATION:-true}
+  backup_directory: ${BACKUP_DIR:-./backups}
+
+# ============================================
+# BACKUP CONFIGURATION
+# ============================================
+backup:
+  enabled: ${BACKUP_ENABLED:-true}
+  schedule: ${BACKUP_SCHEDULE:-0 2 * * *}  # Daily at 2 AM
+  retention_days: ${BACKUP_RETENTION_DAYS:-30}
+  compression: ${BACKUP_COMPRESSION:-gzip}
+  storage:
+    type: ${BACKUP_STORAGE_TYPE:-s3}  # s3, local, gcs
+    bucket: ${BACKUP_S3_BUCKET}
+    path: ${BACKUP_PATH:-{{PROJECT_NAME}}/database}
+
+# ============================================
+# MONITORING AND ALERTING
+# ============================================
+monitoring:
+  enabled: ${MONITORING_ENABLED:-true}
+
+  # Metrics to collect
+  metrics:
+    connection_pool: true
+    query_performance: true
+    table_sizes: true
+    index_usage: true
+    slow_queries: true
+
+  # Alert thresholds
+  alerts:
+    connection_pool_exhaustion: 90  # Alert at 90% utilization
+    slow_query_threshold: 10000     # Alert on queries slower than 10s
+    disk_usage_threshold: 80        # Alert at 80% disk usage
+    replication_lag_threshold: 60   # Alert if lag exceeds 60 seconds

@@ -1,0 +1,28 @@
+{
+  "version": "1.0",
+  "projectName": "agentic-development-framework",
+  "organization": "leo-levintza-lab49",
+  "type": "control-repository",
+  "agents": {
+    "enabled": true,
+    "autoDiscover": true,
+    "paths": [".claude/agents"]
+  },
+  "skills": {
+    "enabled": true,
+    "autoDiscover": true,
+    "paths": [".claude/skills"]
+  },
+  "hooks": {
+    "SessionStart:resume": [
+      {
+        "matcher": "*",
+        "hooks": [{
+          "type": "command",
+          "command": "bash .claude/scripts/check-doc-freshness.sh",
+          "timeout": 30
+        }]
+      }
+    ]
+  }
+}

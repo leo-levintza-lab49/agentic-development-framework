@@ -1,0 +1,1036 @@
+# PR Definitions for Month 3-4: Feature Development Phase
+# Timeline: December 2025 - January 2026
+# PRs: 20-59 (40 PRs total)
+# Complexity Mix: 60% mid-level (24 PRs), 40% senior-level (16 PRs)
+# Dependencies: Build upon Month 1-2 foundation (PRs 1-19)
+
+prs:
+  # Week 1-2: Authentication & Authorization (December 2-13, 2025)
+
+  # auth-service PRs (3 PRs - all senior-level)
+  - id: 20
+    repo: auth-service
+    team: backend
+    branch: feature/auth/jwt-refresh-tokens
+    title: "Implement JWT with refresh tokens"
+    description: |
+      Enhances authentication with refresh token pattern:
+      - Access token (15 min expiry)
+      - Refresh token (7 day expiry)
+      - Token rotation on refresh
+      - Refresh token storage in database
+      - Blacklist for revoked tokens
+      - Secure token validation and cleanup
+    files:
+      - src/main/java/com/polybasepoc/authservice/security/JwtTokenProvider.java
+      - src/main/java/com/polybasepoc/authservice/model/RefreshToken.java
+      - src/main/java/com/polybasepoc/authservice/repository/RefreshTokenRepository.java
+      - src/main/java/com/polybasepoc/authservice/service/RefreshTokenService.java
+      - src/main/java/com/polybasepoc/authservice/controller/TokenController.java
+      - src/test/java/com/polybasepoc/authservice/security/JwtTokenProviderTest.java
+    dependencies: [7]  # Depends on basic auth endpoint
+    complexity: senior-level
+    created: "2025-12-02T09:30:00Z"
+    review_hours: 36
+
+  - id: 21
+    repo: auth-service
+    team: backend
+    branch: feature/auth/rbac
+    title: "Implement role-based access control (RBAC)"
+    description: |
+      Adds comprehensive RBAC system:
+      - Role hierarchy (ADMIN, MANAGER, USER)
+      - Permission-based authorization
+      - Role assignment and management endpoints
+      - Method-level security annotations
+      - Database schema for roles and permissions
+      - Integration with JWT claims
+    files:
+      - src/main/java/com/polybasepoc/authservice/model/Role.java
+      - src/main/java/com/polybasepoc/authservice/model/Permission.java
+      - src/main/java/com/polybasepoc/authservice/security/RoleHierarchy.java
+      - src/main/java/com/polybasepoc/authservice/security/PermissionEvaluator.java
+      - src/main/java/com/polybasepoc/authservice/controller/RoleController.java
+      - src/test/java/com/polybasepoc/authservice/security/RbacIntegrationTest.java
+    dependencies: [20]  # Depends on JWT refresh tokens
+    complexity: senior-level
+    created: "2025-12-05T10:00:00Z"
+    review_hours: 42
+
+  - id: 22
+    repo: auth-service
+    team: backend
+    branch: feature/auth/oauth2-foundation
+    title: "OAuth2 integration foundation"
+    description: |
+      Establishes OAuth2 infrastructure for third-party authentication:
+      - OAuth2 client configuration (Google, GitHub)
+      - Authorization code flow implementation
+      - User account linking
+      - OAuth2 token exchange
+      - Spring Security OAuth2 integration
+      - Callback endpoint handling
+    files:
+      - src/main/java/com/polybasepoc/authservice/config/OAuth2Config.java
+      - src/main/java/com/polybasepoc/authservice/service/OAuth2UserService.java
+      - src/main/java/com/polybasepoc/authservice/controller/OAuth2Controller.java
+      - src/main/java/com/polybasepoc/authservice/model/OAuth2Account.java
+      - src/main/resources/application-oauth2.yml
+      - src/test/java/com/polybasepoc/authservice/OAuth2FlowTest.java
+    dependencies: [21]  # Depends on RBAC
+    complexity: senior-level
+    created: "2025-12-09T09:00:00Z"
+    review_hours: 48
+
+  # user-service PRs (2 PRs - 1 mid-level, 1 senior-level)
+  - id: 23
+    repo: user-service
+    team: backend
+    branch: feature/user/roles-permissions
+    title: "User roles and permissions management"
+    description: |
+      Integrates RBAC into user service:
+      - User-role relationship mapping
+      - Role assignment REST endpoints
+      - Permission checking utilities
+      - User profile enrichment with roles
+      - Database migration for user_roles table
+    files:
+      - src/main/java/com/polybasepoc/userservice/model/UserRole.java
+      - src/main/java/com/polybasepoc/userservice/repository/UserRoleRepository.java
+      - src/main/java/com/polybasepoc/userservice/service/UserRoleService.java
+      - src/main/java/com/polybasepoc/userservice/controller/UserRoleController.java
+      - src/main/resources/db/migration/V3__add_user_roles.sql
+      - src/test/java/com/polybasepoc/userservice/service/UserRoleServiceTest.java
+    dependencies: [21, 5]  # Depends on RBAC and user REST API
+    complexity: mid-level
+    created: "2025-12-10T10:30:00Z"
+    review_hours: 8
+
+  - id: 24
+    repo: user-service
+    team: backend
+    branch: feature/user/jwt-validation
+    title: "Protected endpoints with JWT validation"
+    description: |
+      Secures user endpoints with JWT authentication:
+      - JWT filter for request validation
+      - Token extraction and verification
+      - User context from JWT claims
+      - Method security with @PreAuthorize
+      - Integration with auth-service for validation
+      - Comprehensive security testing
+    files:
+      - src/main/java/com/polybasepoc/userservice/security/JwtAuthenticationFilter.java
+      - src/main/java/com/polybasepoc/userservice/security/JwtValidator.java
+      - src/main/java/com/polybasepoc/userservice/security/SecurityConfig.java
+      - src/main/java/com/polybasepoc/userservice/security/UserPrincipal.java
+      - src/test/java/com/polybasepoc/userservice/security/JwtAuthenticationTest.java
+      - src/test/java/com/polybasepoc/userservice/security/SecureEndpointTest.java
+    dependencies: [20, 23]  # Depends on JWT refresh and user roles
+    complexity: senior-level
+    created: "2025-12-11T09:15:00Z"
+    review_hours: 38
+
+  # order-service PRs (3 PRs - 2 mid-level, 1 senior-level)
+  - id: 25
+    repo: order-service
+    team: backend
+    branch: feature/order/state-machine
+    title: "Order status state machine implementation"
+    description: |
+      Implements robust order lifecycle management:
+      - State machine with valid transitions (DRAFT → PENDING → PROCESSING → COMPLETED)
+      - State validation and transition guards
+      - State change event publishing
+      - Audit trail for status changes
+      - Spring State Machine integration
+      - Comprehensive state transition tests
+    files:
+      - src/main/java/com/polybasepoc/orderservice/statemachine/OrderStateMachineConfig.java
+      - src/main/java/com/polybasepoc/orderservice/statemachine/OrderStateChangeListener.java
+      - src/main/java/com/polybasepoc/orderservice/model/OrderState.java
+      - src/main/java/com/polybasepoc/orderservice/model/OrderEvent.java
+      - src/main/java/com/polybasepoc/orderservice/service/OrderStateMachineService.java
+      - src/test/java/com/polybasepoc/orderservice/statemachine/OrderStateMachineTest.java
+    dependencies: [9]  # Depends on basic order creation
+    complexity: senior-level
+    created: "2025-12-12T10:00:00Z"
+    review_hours: 44
+
+  - id: 26
+    repo: order-service
+    team: backend
+    branch: feature/order/authorization
+    title: "Order-user authorization checks"
+    description: |
+      Enforces user-based access control for orders:
+      - User ownership verification
+      - Role-based order access (users see own, admins see all)
+      - Order access control interceptor
+      - Authorization exceptions and error handling
+      - Integration with JWT user context
+    files:
+      - src/main/java/com/polybasepoc/orderservice/security/OrderAuthorizationService.java
+      - src/main/java/com/polybasepoc/orderservice/security/OrderAccessInterceptor.java
+      - src/main/java/com/polybasepoc/orderservice/exception/OrderAccessDeniedException.java
+      - src/main/java/com/polybasepoc/orderservice/controller/AuthorizedOrderController.java
+      - src/test/java/com/polybasepoc/orderservice/security/OrderAuthorizationTest.java
+    dependencies: [24, 25]  # Depends on JWT validation and state machine
+    complexity: mid-level
+    created: "2025-12-13T09:30:00Z"
+    review_hours: 9
+
+  - id: 27
+    repo: order-service
+    team: backend
+    branch: feature/order/history-filtering
+    title: "Order history and filtering endpoints"
+    description: |
+      Adds advanced order querying capabilities:
+      - Order history by user with pagination
+      - Multi-criteria filtering (status, date range, amount)
+      - Sorting options (date, amount, status)
+      - Search by order number or item
+      - Query optimization with database indexes
+    files:
+      - src/main/java/com/polybasepoc/orderservice/controller/OrderHistoryController.java
+      - src/main/java/com/polybasepoc/orderservice/service/OrderQueryService.java
+      - src/main/java/com/polybasepoc/orderservice/repository/OrderSpecifications.java
+      - src/main/java/com/polybasepoc/orderservice/dto/OrderFilterRequest.java
+      - src/main/java/com/polybasepoc/orderservice/dto/OrderHistoryResponse.java
+      - src/test/java/com/polybasepoc/orderservice/controller/OrderHistoryControllerTest.java
+    dependencies: [26]  # Depends on order authorization
+    complexity: mid-level
+    created: "2025-12-16T10:15:00Z"
+    review_hours: 10
+
+  # payment-service PRs (3 PRs - 1 mid-level, 2 senior-level)
+  - id: 28
+    repo: payment-service
+    team: backend
+    branch: feature/payment/processing-foundation
+    title: "Payment processing foundation"
+    description: |
+      Establishes core payment processing infrastructure:
+      - Payment entity model (amount, currency, status)
+      - Payment repository and service layer
+      - Payment creation and validation
+      - Payment status tracking
+      - Transaction ID generation
+      - Basic REST endpoints for payment operations
+    files:
+      - src/main/java/com/polybasepoc/paymentservice/model/Payment.java
+      - src/main/java/com/polybasepoc/paymentservice/model/PaymentStatus.java
+      - src/main/java/com/polybasepoc/paymentservice/repository/PaymentRepository.java
+      - src/main/java/com/polybasepoc/paymentservice/service/PaymentService.java
+      - src/main/java/com/polybasepoc/paymentservice/controller/PaymentController.java
+      - src/test/java/com/polybasepoc/paymentservice/service/PaymentServiceTest.java
+    dependencies: [2]  # Depends on payment schema
+    complexity: mid-level
+    created: "2025-12-17T09:00:00Z"
+    review_hours: 8
+
+  - id: 29
+    repo: payment-service
+    team: backend
+    branch: feature/payment/stripe-integration
+    title: "Stripe payment gateway integration"
+    description: |
+      Integrates Stripe for payment processing:
+      - Stripe SDK setup and configuration
+      - Payment intent creation
+      - Payment confirmation and capture
+      - Refund processing
+      - Stripe customer management
+      - Payment method handling (cards, wallets)
+      - Idempotency key management
+      - Comprehensive error handling for Stripe API
+    files:
+      - src/main/java/com/polybasepoc/paymentservice/gateway/StripeGateway.java
+      - src/main/java/com/polybasepoc/paymentservice/config/StripeConfig.java
+      - src/main/java/com/polybasepoc/paymentservice/service/StripePaymentService.java
+      - src/main/java/com/polybasepoc/paymentservice/dto/StripePaymentRequest.java
+      - src/main/java/com/polybasepoc/paymentservice/exception/StripePaymentException.java
+      - src/test/java/com/polybasepoc/paymentservice/gateway/StripeGatewayTest.java
+    dependencies: [28]  # Depends on payment foundation
+    complexity: senior-level
+    created: "2025-12-18T10:30:00Z"
+    review_hours: 46
+
+  - id: 30
+    repo: payment-service
+    team: backend
+    branch: feature/payment/webhooks
+    title: "Stripe webhook handling for payment events"
+    description: |
+      Implements Stripe webhook processing for async events:
+      - Webhook endpoint with signature verification
+      - Event type handling (payment_intent.succeeded, payment_intent.failed)
+      - Idempotent event processing
+      - Payment status synchronization
+      - Event logging and audit trail
+      - Retry mechanism for failed webhooks
+      - Security validation and authentication
+    files:
+      - src/main/java/com/polybasepoc/paymentservice/webhook/StripeWebhookController.java
+      - src/main/java/com/polybasepoc/paymentservice/webhook/StripeWebhookHandler.java
+      - src/main/java/com/polybasepoc/paymentservice/webhook/WebhookEventProcessor.java
+      - src/main/java/com/polybasepoc/paymentservice/model/WebhookEvent.java
+      - src/main/java/com/polybasepoc/paymentservice/repository/WebhookEventRepository.java
+      - src/test/java/com/polybasepoc/paymentservice/webhook/StripeWebhookTest.java
+    dependencies: [29]  # Depends on Stripe integration
+    complexity: senior-level
+    created: "2025-12-20T09:15:00Z"
+    review_hours: 40
+
+  # Week 3-4: Service Integration & UI (December 23 - January 10, 2026)
+
+  # order-service integration PRs (2 PRs - both senior-level)
+  - id: 31
+    repo: order-service
+    team: backend
+    branch: feature/order/payment-coordination
+    title: "Order-payment service coordination"
+    description: |
+      Orchestrates order and payment workflows:
+      - Payment service client integration
+      - Order-payment linking and tracking
+      - Coordinated transaction handling
+      - Payment failure rollback logic
+      - Retry mechanism for payment calls
+      - Circuit breaker for payment service
+      - End-to-end order+payment flow
+    files:
+      - src/main/java/com/polybasepoc/orderservice/client/PaymentServiceClient.java
+      - src/main/java/com/polybasepoc/orderservice/service/OrderPaymentCoordinator.java
+      - src/main/java/com/polybasepoc/orderservice/config/PaymentClientConfig.java
+      - src/main/java/com/polybasepoc/orderservice/model/PaymentTransaction.java
+      - src/main/java/com/polybasepoc/orderservice/exception/PaymentFailedException.java
+      - src/test/java/com/polybasepoc/orderservice/service/OrderPaymentCoordinatorTest.java
+    dependencies: [25, 29]  # Depends on state machine and Stripe integration
+    complexity: senior-level
+    created: "2025-12-23T10:00:00Z"
+    review_hours: 42
+
+  - id: 32
+    repo: order-service
+    team: backend
+    branch: feature/order/notifications-integration
+    title: "Order status notification integration"
+    description: |
+      Sends notifications on order status changes:
+      - Notification service client
+      - Event-driven notification triggering
+      - Order confirmation notifications
+      - Status update notifications
+      - Async notification processing
+      - Notification failure handling
+    files:
+      - src/main/java/com/polybasepoc/orderservice/client/NotificationServiceClient.java
+      - src/main/java/com/polybasepoc/orderservice/service/OrderNotificationService.java
+      - src/main/java/com/polybasepoc/orderservice/event/OrderStatusChangedEvent.java
+      - src/main/java/com/polybasepoc/orderservice/listener/OrderNotificationListener.java
+      - src/test/java/com/polybasepoc/orderservice/service/OrderNotificationServiceTest.java
+    dependencies: [25]  # Depends on state machine
+    complexity: mid-level
+    created: "2026-01-06T09:30:00Z"
+    review_hours: 10
+
+  # notification-service PRs (2 PRs - both mid-level)
+  - id: 33
+    repo: notification-service
+    team: backend
+    branch: feature/notification/email-foundation
+    title: "Email notification foundation with SMTP"
+    description: |
+      Establishes email notification infrastructure:
+      - SMTP configuration with JavaMail
+      - Email template engine (Thymeleaf)
+      - Notification entity and repository
+      - Email sending service
+      - Async email processing with Spring @Async
+      - Email delivery status tracking
+    files:
+      - src/main/java/com/polybasepoc/notificationservice/model/Notification.java
+      - src/main/java/com/polybasepoc/notificationservice/service/EmailService.java
+      - src/main/java/com/polybasepoc/notificationservice/config/EmailConfig.java
+      - src/main/java/com/polybasepoc/notificationservice/repository/NotificationRepository.java
+      - src/main/resources/templates/email-base.html
+      - src/test/java/com/polybasepoc/notificationservice/service/EmailServiceTest.java
+    dependencies: []  # Independent
+    complexity: mid-level
+    created: "2026-01-07T10:00:00Z"
+    review_hours: 9
+
+  - id: 34
+    repo: notification-service
+    team: backend
+    branch: feature/notification/order-templates
+    title: "Order status notification email templates"
+    description: |
+      Creates branded email templates for order events:
+      - Order confirmation template
+      - Order shipped template
+      - Order delivered template
+      - Order cancelled template
+      - Template variable substitution
+      - HTML email styling with inline CSS
+    files:
+      - src/main/resources/templates/order-confirmation.html
+      - src/main/resources/templates/order-shipped.html
+      - src/main/resources/templates/order-delivered.html
+      - src/main/resources/templates/order-cancelled.html
+      - src/main/java/com/polybasepoc/notificationservice/service/OrderNotificationTemplateService.java
+      - src/test/java/com/polybasepoc/notificationservice/service/OrderNotificationTemplateServiceTest.java
+    dependencies: [33]  # Depends on email foundation
+    complexity: mid-level
+    created: "2026-01-08T09:15:00Z"
+    review_hours: 7
+
+  # web-bff PRs (2 PRs - both senior-level)
+  - id: 35
+    repo: web-bff
+    team: bff
+    branch: feature/web/order-aggregation
+    title: "Order aggregation endpoint (order + payment data)"
+    description: |
+      Aggregates order and payment data for web UI:
+      - Composite order detail endpoint
+      - Parallel service calls to order-service and payment-service
+      - Data merging and transformation
+      - DTOs for aggregated responses
+      - Performance optimization with caching
+      - Error handling for partial failures
+    files:
+      - src/controllers/orderAggregationController.ts
+      - src/services/orderAggregationService.ts
+      - src/clients/orderServiceClient.ts
+      - src/clients/paymentServiceClient.ts
+      - src/dto/aggregatedOrderResponse.dto.ts
+      - src/tests/orderAggregationService.test.ts
+    dependencies: [27, 29, 11]  # Depends on order history, payment service, and basic BFF
+    complexity: senior-level
+    created: "2026-01-09T10:30:00Z"
+    review_hours: 38
+
+  - id: 36
+    repo: web-bff
+    team: bff
+    branch: feature/web/error-retry-logic
+    title: "BFF error handling and retry logic"
+    description: |
+      Implements resilient error handling for backend calls:
+      - Retry logic with exponential backoff
+      - Circuit breaker pattern
+      - Timeout handling
+      - Graceful degradation
+      - Standardized error responses
+      - Request correlation IDs
+      - Structured logging for debugging
+    files:
+      - src/middleware/errorHandler.ts
+      - src/utils/retryWithBackoff.ts
+      - src/utils/circuitBreaker.ts
+      - src/config/resilienceConfig.ts
+      - src/middleware/correlationId.ts
+      - src/tests/errorHandler.test.ts
+      - src/tests/retryLogic.test.ts
+    dependencies: [35]  # Depends on aggregation endpoint
+    complexity: senior-level
+    created: "2026-01-10T09:00:00Z"
+    review_hours: 40
+
+  # web-app PRs (3 PRs - all mid-level)
+  - id: 37
+    repo: web-app
+    team: frontend
+    branch: feature/web/order-creation-flow
+    title: "Order creation flow UI"
+    description: |
+      Builds user interface for creating orders:
+      - Order creation form with validation
+      - Product selection and quantity
+      - Shopping cart component
+      - Order summary display
+      - Form state management with React Hook Form
+      - Integration with web-bff order endpoints
+    files:
+      - src/pages/OrderCreation.tsx
+      - src/components/OrderForm.tsx
+      - src/components/ProductSelector.tsx
+      - src/components/ShoppingCart.tsx
+      - src/hooks/useOrderCreation.ts
+      - src/services/orderService.ts
+      - src/tests/OrderCreation.test.tsx
+    dependencies: [15, 35]  # Depends on protected routes and BFF aggregation
+    complexity: mid-level
+    created: "2026-01-13T10:00:00Z"
+    review_hours: 9
+
+  - id: 38
+    repo: web-app
+    team: frontend
+    branch: feature/web/payment-ui
+    title: "Payment integration UI with Stripe Elements"
+    description: |
+      Integrates Stripe payment form into checkout:
+      - Stripe Elements integration
+      - Credit card input component
+      - Payment method selection
+      - Payment confirmation flow
+      - Loading states and error handling
+      - PCI compliance considerations
+      - Success and failure messaging
+    files:
+      - src/pages/Checkout.tsx
+      - src/components/PaymentForm.tsx
+      - src/components/StripeCardInput.tsx
+      - src/hooks/useStripePayment.ts
+      - src/services/paymentService.ts
+      - src/tests/PaymentForm.test.tsx
+    dependencies: [37]  # Depends on order creation flow
+    complexity: mid-level
+    created: "2026-01-14T09:30:00Z"
+    review_hours: 10
+
+  - id: 39
+    repo: web-app
+    team: frontend
+    branch: feature/web/order-history-page
+    title: "Order history and details page"
+    description: |
+      Displays user order history with filtering:
+      - Order history list view
+      - Order details modal/page
+      - Status badge components
+      - Date filtering and search
+      - Pagination controls
+      - Integration with BFF order history endpoint
+      - Responsive design for mobile
+    files:
+      - src/pages/OrderHistory.tsx
+      - src/pages/OrderDetails.tsx
+      - src/components/OrderList.tsx
+      - src/components/OrderCard.tsx
+      - src/components/OrderStatusBadge.tsx
+      - src/hooks/useOrderHistory.ts
+      - src/tests/OrderHistory.test.tsx
+    dependencies: [38]  # Depends on payment UI
+    complexity: mid-level
+    created: "2026-01-15T10:15:00Z"
+    review_hours: 8
+
+  # component-library PR (1 PR - senior-level)
+  - id: 40
+    repo: component-library
+    team: frontend
+    branch: feature/components/datatable
+    title: "DataTable component with sorting and filtering"
+    description: |
+      Creates advanced data table component:
+      - Sortable columns
+      - Column filtering
+      - Pagination support
+      - Row selection
+      - Custom cell renderers
+      - Loading and empty states
+      - TypeScript generics for type safety
+      - Comprehensive Storybook stories
+      - Accessibility (keyboard navigation, ARIA)
+    files:
+      - src/components/DataTable/DataTable.tsx
+      - src/components/DataTable/DataTableHeader.tsx
+      - src/components/DataTable/DataTableRow.tsx
+      - src/components/DataTable/DataTablePagination.tsx
+      - src/components/DataTable/DataTable.stories.tsx
+      - src/components/DataTable/DataTable.test.tsx
+      - src/components/DataTable/types.ts
+    dependencies: [13]  # Depends on Button and Form components
+    complexity: senior-level
+    created: "2026-01-16T09:00:00Z"
+    review_hours: 44
+
+  # mobile-bff PR (1 PR - mid-level)
+  - id: 41
+    repo: mobile-bff
+    team: bff
+    branch: feature/mobile/user-order-endpoints
+    title: "Mobile BFF user and order endpoints"
+    description: |
+      Creates mobile-optimized endpoints:
+      - User profile endpoint with mobile-specific fields
+      - Order list endpoint with pagination
+      - Order details endpoint
+      - Lightweight response payloads for mobile
+      - Push notification token registration
+      - Mobile-specific error codes
+    files:
+      - src/controllers/mobileUserController.ts
+      - src/controllers/mobileOrderController.ts
+      - src/services/mobileUserService.ts
+      - src/services/mobileOrderService.ts
+      - src/dto/mobileUserResponse.dto.ts
+      - src/dto/mobileOrderResponse.dto.ts
+      - src/tests/mobileUserController.test.ts
+    dependencies: [24, 27]  # Depends on user JWT and order history
+    complexity: mid-level
+    created: "2026-01-17T10:30:00Z"
+    review_hours: 9
+
+  # db-schemas PRs (2 PRs - 1 mid-level, 1 senior-level)
+  - id: 42
+    repo: db-schemas
+    team: data-platform
+    branch: schema/v1.3.0/notification-log
+    title: "Add notification_log table for audit trail"
+    description: |
+      Creates notification tracking schema:
+      - notification_log table with event details
+      - Indexes for efficient querying
+      - Foreign keys to orders and users
+      - Delivery status tracking
+      - Timestamp fields for sent/delivered
+      - Retention policy comments
+    files:
+      - schemas/notification_log.sql
+      - schemas/indexes/notification_log_indexes.sql
+      - docs/notification_log_schema.md
+    dependencies: [2]  # Depends on initial schemas
+    complexity: mid-level
+    created: "2026-01-20T09:00:00Z"
+    review_hours: 7
+
+  - id: 43
+    repo: db-schemas
+    team: data-platform
+    branch: schema/v1.4.0/performance-indexes
+    title: "Performance indexes for order queries"
+    description: |
+      Optimizes database query performance:
+      - Composite indexes for order filtering (user_id, status, created_at)
+      - Covering indexes for common queries
+      - Partial indexes for active orders
+      - Index usage analysis and recommendations
+      - Query plan documentation
+      - Index maintenance scripts
+    files:
+      - schemas/indexes/order_performance_indexes.sql
+      - schemas/indexes/payment_performance_indexes.sql
+      - docs/index_strategy.md
+      - scripts/analyze_index_usage.sql
+    dependencies: [27]  # Depends on order history (high query volume)
+    complexity: senior-level
+    created: "2026-01-21T10:00:00Z"
+    review_hours: 36
+
+  # Additional PRs to reach 40 total (44-59)
+
+  # graphql-gateway PRs (2 PRs - 1 mid-level, 1 senior-level)
+  - id: 44
+    repo: graphql-gateway
+    team: bff
+    branch: feature/graphql/user-schema
+    title: "GraphQL schema for user queries"
+    description: |
+      Defines GraphQL schema for user operations:
+      - User type definitions
+      - Query resolvers (user, users)
+      - Mutation resolvers (updateUser)
+      - DataLoader for batch requests
+      - Integration with user-service REST API
+    files:
+      - src/schema/user.graphql
+      - src/resolvers/userResolver.ts
+      - src/dataloaders/userDataLoader.ts
+      - src/tests/userResolver.test.ts
+    dependencies: [5]  # Depends on user REST API
+    complexity: mid-level
+    created: "2026-01-22T09:30:00Z"
+    review_hours: 8
+
+  - id: 45
+    repo: graphql-gateway
+    team: bff
+    branch: feature/graphql/order-schema
+    title: "GraphQL schema for order queries with nested data"
+    description: |
+      Creates comprehensive order GraphQL schema:
+      - Order type with nested user and payment data
+      - Complex query resolvers with filtering
+      - Mutation resolvers (createOrder, updateOrderStatus)
+      - Field-level authorization
+      - N+1 query prevention with DataLoader
+      - Subscription for order status updates
+    files:
+      - src/schema/order.graphql
+      - src/resolvers/orderResolver.ts
+      - src/resolvers/orderMutations.ts
+      - src/subscriptions/orderSubscriptions.ts
+      - src/dataloaders/orderDataLoader.ts
+      - src/tests/orderResolver.test.ts
+    dependencies: [44, 27, 29]  # Depends on user schema, order history, payment
+    complexity: senior-level
+    created: "2026-01-23T10:00:00Z"
+    review_hours: 42
+
+  # db-migrations PRs (2 PRs - both mid-level)
+  - id: 46
+    repo: db-migrations
+    team: data-platform
+    branch: migration/v1.1.0/rbac-tables
+    title: "Liquibase migrations for RBAC tables"
+    description: |
+      Adds database migrations for role-based access:
+      - roles table migration
+      - permissions table migration
+      - user_roles junction table
+      - role_permissions junction table
+      - Seed data for default roles
+      - Rollback scripts
+    files:
+      - migrations/v1.1.0/001_create_roles_table.xml
+      - migrations/v1.1.0/002_create_permissions_table.xml
+      - migrations/v1.1.0/003_create_user_roles_table.xml
+      - migrations/v1.1.0/004_seed_default_roles.xml
+      - migrations/v1.1.0/rollback/001_rollback_rbac.xml
+    dependencies: [21]  # Depends on RBAC feature
+    complexity: mid-level
+    created: "2026-01-24T09:00:00Z"
+    review_hours: 7
+
+  - id: 47
+    repo: db-migrations
+    team: data-platform
+    branch: migration/v1.2.0/payment-tables
+    title: "Liquibase migrations for payment tables"
+    description: |
+      Creates payment-related database migrations:
+      - payments table with Stripe fields
+      - webhook_events table for idempotency
+      - payment_methods table
+      - Foreign keys and constraints
+      - Indexes for performance
+      - Seed data for testing
+    files:
+      - migrations/v1.2.0/001_create_payments_table.xml
+      - migrations/v1.2.0/002_create_webhook_events_table.xml
+      - migrations/v1.2.0/003_create_payment_methods_table.xml
+      - migrations/v1.2.0/004_add_payment_indexes.xml
+    dependencies: [28, 30]  # Depends on payment foundation and webhooks
+    complexity: mid-level
+    created: "2026-01-27T10:30:00Z"
+    review_hours: 8
+
+  # terraform-aws-infrastructure PRs (2 PRs - 1 mid-level, 1 senior-level)
+  - id: 48
+    repo: terraform-aws-infrastructure
+    team: platform
+    branch: feature/infra/rds-postgres
+    title: "RDS PostgreSQL module for production databases"
+    description: |
+      Creates Terraform module for RDS setup:
+      - RDS PostgreSQL instance configuration
+      - Multi-AZ deployment for high availability
+      - Automated backups and snapshots
+      - Security group configuration
+      - Parameter group optimization
+      - Subnet group for VPC
+      - Secrets Manager integration for credentials
+    files:
+      - modules/rds/main.tf
+      - modules/rds/variables.tf
+      - modules/rds/outputs.tf
+      - modules/rds/security_groups.tf
+      - examples/rds/main.tf
+      - docs/rds_module.md
+    dependencies: []  # Independent infrastructure
+    complexity: mid-level
+    created: "2026-01-28T09:00:00Z"
+    review_hours: 9
+
+  - id: 49
+    repo: terraform-aws-infrastructure
+    team: platform
+    branch: feature/infra/elasticache-redis
+    title: "ElastiCache Redis cluster for caching and sessions"
+    description: |
+      Provisions Redis infrastructure:
+      - ElastiCache Redis cluster
+      - Cluster mode configuration
+      - Automatic failover setup
+      - Security groups and network isolation
+      - CloudWatch alarms for monitoring
+      - Backup and restore configuration
+      - Integration with VPC
+    files:
+      - modules/elasticache/main.tf
+      - modules/elasticache/variables.tf
+      - modules/elasticache/outputs.tf
+      - modules/elasticache/cloudwatch.tf
+      - examples/elasticache/main.tf
+      - docs/elasticache_module.md
+    dependencies: [48]  # May share VPC/networking config
+    complexity: senior-level
+    created: "2026-01-29T10:15:00Z"
+    review_hours: 38
+
+  # grafana-dashboards PRs (2 PRs - 1 mid-level, 1 senior-level)
+  - id: 50
+    repo: grafana-dashboards
+    team: platform
+    branch: feature/dashboards/service-health
+    title: "Service health monitoring dashboards"
+    description: |
+      Creates comprehensive service monitoring:
+      - Service uptime panels
+      - Request rate and latency metrics
+      - Error rate tracking
+      - Resource utilization (CPU, memory)
+      - Database connection pool metrics
+      - Dashboard for each microservice
+    files:
+      - dashboards/user-service-health.json
+      - dashboards/auth-service-health.json
+      - dashboards/order-service-health.json
+      - dashboards/payment-service-health.json
+      - provisioning/dashboards.yml
+    dependencies: [19]  # Depends on initial dashboards
+    complexity: mid-level
+    created: "2026-01-30T09:30:00Z"
+    review_hours: 7
+
+  - id: 51
+    repo: grafana-dashboards
+    team: platform
+    branch: feature/dashboards/business-metrics
+    title: "Business metrics dashboard for orders and payments"
+    description: |
+      Tracks key business KPIs:
+      - Order volume over time
+      - Payment success/failure rates
+      - Revenue tracking
+      - Average order value
+      - Customer registration trends
+      - Conversion funnel metrics
+      - Real-time business alerts
+    files:
+      - dashboards/business-metrics.json
+      - dashboards/order-analytics.json
+      - dashboards/payment-analytics.json
+      - queries/business_metrics.sql
+      - docs/business_metrics_guide.md
+    dependencies: [50]  # Depends on service health dashboards
+    complexity: senior-level
+    created: "2026-01-31T10:00:00Z"
+    review_hours: 40
+
+  # prometheus-alerts PRs (2 PRs - both mid-level)
+  - id: 52
+    repo: prometheus-alerts
+    team: platform
+    branch: feature/alerts/service-alerts
+    title: "Service-level alerting rules"
+    description: |
+      Configures alerts for service health:
+      - High error rate alerts (>5% for 5 minutes)
+      - Service down alerts
+      - High latency alerts (p95 > 2s)
+      - Database connection failures
+      - Memory/CPU threshold alerts
+      - Alert routing to Slack/PagerDuty
+    files:
+      - alerts/service_alerts.yml
+      - alerts/database_alerts.yml
+      - alerts/resource_alerts.yml
+      - config/alertmanager.yml
+      - docs/alert_runbooks.md
+    dependencies: []  # Independent monitoring
+    complexity: mid-level
+    created: "2026-02-03T09:00:00Z"
+    review_hours: 8
+
+  - id: 53
+    repo: prometheus-alerts
+    team: platform
+    branch: feature/alerts/business-alerts
+    title: "Business-critical alerting rules"
+    description: |
+      Creates alerts for business anomalies:
+      - Payment failure spike alerts
+      - Order drop-off alerts
+      - Unusual traffic patterns
+      - Revenue impact alerts
+      - Customer signup failures
+      - Cart abandonment spikes
+    files:
+      - alerts/business_alerts.yml
+      - alerts/payment_alerts.yml
+      - alerts/order_alerts.yml
+      - docs/business_alert_runbooks.md
+    dependencies: [52]  # Depends on service alerts
+    complexity: mid-level
+    created: "2026-02-04T09:30:00Z"
+    review_hours: 9
+
+  # mobile-shared PR (1 PR - mid-level)
+  - id: 54
+    repo: mobile-shared
+    team: mobile
+    branch: feature/shared/api-client
+    title: "Shared API client for mobile BFF"
+    description: |
+      Creates reusable API client for mobile apps:
+      - HTTP client with retry logic
+      - Request/response interceptors
+      - Token refresh handling
+      - Network error handling
+      - TypeScript types for API responses
+      - Logging and debugging utilities
+    files:
+      - src/api/apiClient.ts
+      - src/api/interceptors.ts
+      - src/api/tokenManager.ts
+      - src/types/apiTypes.ts
+      - src/utils/networkUtils.ts
+      - src/tests/apiClient.test.ts
+    dependencies: [41]  # Depends on mobile BFF endpoints
+    complexity: mid-level
+    created: "2026-02-05T10:00:00Z"
+    review_hours: 8
+
+  # ios-app PRs (2 PRs - both mid-level)
+  - id: 55
+    repo: ios-app
+    team: mobile
+    branch: feature/ios/order-list
+    title: "iOS order list screen with SwiftUI"
+    description: |
+      Builds order list view for iOS:
+      - SwiftUI list view for orders
+      - Pull-to-refresh functionality
+      - Order status badges
+      - Navigation to order details
+      - Loading and error states
+      - Integration with mobile-shared API client
+    files:
+      - PolybasePoc/Views/OrderListView.swift
+      - PolybasePoc/ViewModels/OrderListViewModel.swift
+      - PolybasePoc/Models/Order.swift
+      - PolybasePoc/Components/OrderRowView.swift
+      - PolybasePocTests/OrderListViewModelTests.swift
+    dependencies: [56, 54]  # Depends on iOS auth and shared API client
+    complexity: mid-level
+    created: "2026-02-06T09:15:00Z"
+    review_hours: 9
+
+  - id: 56
+    repo: ios-app
+    team: mobile
+    branch: feature/ios/authentication
+    title: "iOS authentication flow with biometrics"
+    description: |
+      Implements secure iOS authentication:
+      - Login screen with SwiftUI
+      - Biometric authentication (Face ID/Touch ID)
+      - Secure token storage in Keychain
+      - Automatic token refresh
+      - Logout functionality
+      - Session management
+    files:
+      - PolybasePoc/Views/LoginView.swift
+      - PolybasePoc/Services/AuthenticationService.swift
+      - PolybasePoc/Services/KeychainService.swift
+      - PolybasePoc/Services/BiometricService.swift
+      - PolybasePoc/ViewModels/LoginViewModel.swift
+      - PolybasePocTests/AuthenticationServiceTests.swift
+    dependencies: [20]  # Depends on JWT refresh tokens
+    complexity: mid-level
+    created: "2026-02-07T10:30:00Z"
+    review_hours: 10
+
+  # android-app PRs (2 PRs - both mid-level)
+  - id: 57
+    repo: android-app
+    team: mobile
+    branch: feature/android/order-list
+    title: "Android order list screen with Jetpack Compose"
+    description: |
+      Creates order list for Android:
+      - Jetpack Compose UI for order list
+      - LazyColumn with pagination
+      - Swipe-to-refresh
+      - Order status chips
+      - Navigation to order details
+      - ViewModel with LiveData
+      - Integration with mobile-shared API
+    files:
+      - app/src/main/java/com/polybasepoc/ui/orders/OrderListScreen.kt
+      - app/src/main/java/com/polybasepoc/ui/orders/OrderListViewModel.kt
+      - app/src/main/java/com/polybasepoc/data/model/Order.kt
+      - app/src/main/java/com/polybasepoc/ui/orders/OrderRowItem.kt
+      - app/src/test/java/com/polybasepoc/OrderListViewModelTest.kt
+    dependencies: [58, 54]  # Depends on Android auth and shared API
+    complexity: mid-level
+    created: "2026-02-10T09:00:00Z"
+    review_hours: 9
+
+  - id: 58
+    repo: android-app
+    team: mobile
+    branch: feature/android/authentication
+    title: "Android authentication with BiometricPrompt"
+    description: |
+      Implements Android authentication:
+      - Login screen with Jetpack Compose
+      - BiometricPrompt integration (fingerprint/face)
+      - Secure token storage with EncryptedSharedPreferences
+      - Automatic token refresh
+      - Logout and session management
+      - Security best practices
+    files:
+      - app/src/main/java/com/polybasepoc/ui/auth/LoginScreen.kt
+      - app/src/main/java/com/polybasepoc/data/auth/AuthenticationRepository.kt
+      - app/src/main/java/com/polybasepoc/data/auth/BiometricAuthenticator.kt
+      - app/src/main/java/com/polybasepoc/data/auth/TokenManager.kt
+      - app/src/main/java/com/polybasepoc/ui/auth/LoginViewModel.kt
+      - app/src/test/java/com/polybasepoc/AuthenticationRepositoryTest.kt
+    dependencies: [20]  # Depends on JWT refresh tokens
+    complexity: mid-level
+    created: "2026-02-11T10:15:00Z"
+    review_hours: 10
+
+  # user-service PR (1 PR - senior-level)
+  - id: 59
+    repo: user-service
+    team: backend
+    branch: feature/user/profile-completeness
+    title: "User profile completeness tracking and prompts"
+    description: |
+      Adds profile quality features:
+      - Profile completeness percentage calculation
+      - Missing field detection
+      - Profile strength indicator
+      - Gamification elements (badges, levels)
+      - Profile completion prompts
+      - Analytics for profile metrics
+      - A/B testing framework for prompts
+    files:
+      - src/main/java/com/polybasepoc/userservice/service/ProfileCompletenessService.java
+      - src/main/java/com/polybasepoc/userservice/model/ProfileMetrics.java
+      - src/main/java/com/polybasepoc/userservice/controller/ProfileMetricsController.java
+      - src/main/java/com/polybasepoc/userservice/analytics/ProfileAnalytics.java
+      - src/test/java/com/polybasepoc/userservice/service/ProfileCompletenessServiceTest.java
+    dependencies: [5, 23]  # Depends on user REST API and user roles
+    complexity: senior-level
+    created: "2026-02-12T09:30:00Z"
+    review_hours: 36
+
+# Summary Statistics
+# Total PRs: 40 (IDs 20-59)
+# Mid-level: 24 PRs (60%)
+# Senior-level: 16 PRs (40%)
+# Timeline: December 2, 2025 - February 12, 2026 (73 days)
+# Average review time: ~18 hours
+# Teams: backend (14), bff (5), frontend (4), data-platform (4), platform (6), mobile (7)

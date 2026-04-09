@@ -1,0 +1,350 @@
+-- Template: Schema Validation
+-- Description: Comprehensive schema structure validation queries
+-- Variables: {{TABLE_NAME}}, {{SCHEMA_NAME}}
+
+-- Schema Validation for: {{TABLE_NAME}}
+-- Schema: {{SCHEMA_NAME}}
+-- Date: {{DATE}}
+
+-- ============================================
+-- TABLE EXISTENCE AND METADATA
+-- ============================================
+
+-- Check if table exists
+SELECT
+    schemaname,
+    tablename,
+    tableowner,
+    tablespace,
+    hasindexes,
+    hasrules,
+    hastriggers
+FROM pg_tables
+WHERE tablename = '{{TABLE_NAME}}'
+  AND schemaname = '{{SCHEMA_NAME}}';
+
+-- Get table comment
+SELECT
+    obj_description(oid) AS table_comment
+FROM pg_class
+WHERE relname = '{{TABLE_NAME}}'
+  AND relnamespace = (SELECT oid FROM pg_namespace WHERE nspname = '{{SCHEMA_NAME}}');
+
+-- Get table size and row count
+SELECT
+    schemaname,
+    tablename,
+    pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) AS total_size,
+    pg_size_pretty(pg_relation_size(schemaname||'.'||tablename)) AS table_size,
+    pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename) - pg_relation_size(schemaname||'.'||tablename)) AS index_size,
+    pg_stat_get_live_tuples(pg_class.oid) AS approximate_row_count
+FROM pg_tables
+JOIN pg_class ON pg_tables.tablename = pg_class.relname
+WHERE tablename = '{{TABLE_NAME}}'
+  AND schemaname = '{{SCHEMA_NAME}}';
+
+-- ============================================
+-- COLUMN VALIDATION
+-- ============================================
+
+-- List all columns with detailed information
+SELECT
+    column_name,
+    data_type,
+    character_maximum_length,
+    numeric_precision,
+    numeric_scale,
+    is_nullable,
+    column_default,
+    ordinal_position,
+    col_description((table_schema||'.'||table_name)::regclass::oid, ordinal_position) AS column_comment
+FROM information_schema.columns
+WHERE table_name = '{{TABLE_NAME}}'
+  AND table_schema = '{{SCHEMA_NAME}}'
+ORDER BY ordinal_position;
+
+-- Check for required audit columns
+SELECT
+    CASE WHEN EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = '{{TABLE_NAME}}' AND column_name = 'id') THEN 'OK' ELSE 'MISSING' END AS has_id,
+    CASE WHEN EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = '{{TABLE_NAME}}' AND column_name = 'created_at') THEN 'OK' ELSE 'MISSING' END AS has_created_at,
+    CASE WHEN EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = '{{TABLE_NAME}}' AND column_name = 'updated_at') THEN 'OK' ELSE 'MISSING' END AS has_updated_at,
+    CASE WHEN EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = '{{TABLE_NAME}}' AND column_name = 'deleted_at') THEN 'OK' ELSE 'MISSING' END AS has_deleted_at;
+
+-- Check for columns without NOT NULL constraints (potential data quality issues)
+SELECT
+    column_name,
+    data_type,
+    is_nullable
+FROM information_schema.columns
+WHERE table_name = '{{TABLE_NAME}}'
+  AND table_schema = '{{SCHEMA_NAME}}'
+  AND is_nullable = 'YES'
+  AND column_name NOT IN ('deleted_at', 'updated_by', 'created_by')
+ORDER BY ordinal_position;
+
+-- ============================================
+-- CONSTRAINT VALIDATION
+-- ============================================
+
+-- List all constraints
+SELECT
+    tc.constraint_name,
+    tc.constraint_type,
+    tc.table_name,
+    kcu.column_name,
+    tc.is_deferrable,
+    tc.initially_deferred
+FROM information_schema.table_constraints AS tc
+LEFT JOIN information_schema.key_column_usage AS kcu
+    ON tc.constraint_name = kcu.constraint_name
+    AND tc.table_schema = kcu.table_schema
+WHERE tc.table_name = '{{TABLE_NAME}}'
+  AND tc.table_schema = '{{SCHEMA_NAME}}'
+ORDER BY tc.constraint_type, tc.constraint_name;
+
+-- List primary key
+SELECT
+    tc.constraint_name,
+    kcu.column_name
+FROM information_schema.table_constraints AS tc
+JOIN information_schema.key_column_usage AS kcu
+    ON tc.constraint_name = kcu.constraint_name
+    AND tc.table_schema = kcu.table_schema
+WHERE tc.constraint_type = 'PRIMARY KEY'
+  AND tc.table_name = '{{TABLE_NAME}}'
+  AND tc.table_schema = '{{SCHEMA_NAME}}';
+
+-- List foreign keys with referenced tables
+SELECT
+    tc.constraint_name AS fk_name,
+    kcu.column_name AS fk_column,
+    ccu.table_name AS referenced_table,
+    ccu.column_name AS referenced_column,
+    rc.update_rule,
+    rc.delete_rule
+FROM information_schema.table_constraints AS tc
+JOIN information_schema.key_column_usage AS kcu
+    ON tc.constraint_name = kcu.constraint_name
+    AND tc.table_schema = kcu.table_schema
+JOIN information_schema.constraint_column_usage AS ccu
+    ON ccu.constraint_name = tc.constraint_name
+    AND ccu.table_schema = tc.table_schema
+JOIN information_schema.referential_constraints AS rc
+    ON tc.constraint_name = rc.constraint_name
+WHERE tc.constraint_type = 'FOREIGN KEY'
+  AND tc.table_name = '{{TABLE_NAME}}'
+  AND tc.table_schema = '{{SCHEMA_NAME}}';
+
+-- List check constraints
+SELECT
+    tc.constraint_name,
+    cc.check_clause
+FROM information_schema.table_constraints AS tc
+JOIN information_schema.check_constraints AS cc
+    ON tc.constraint_name = cc.constraint_name
+WHERE tc.constraint_type = 'CHECK'
+  AND tc.table_name = '{{TABLE_NAME}}'
+  AND tc.table_schema = '{{SCHEMA_NAME}}';
+
+-- List unique constraints
+SELECT
+    tc.constraint_name,
+    string_agg(kcu.column_name, ', ' ORDER BY kcu.ordinal_position) AS unique_columns
+FROM information_schema.table_constraints AS tc
+JOIN information_schema.key_column_usage AS kcu
+    ON tc.constraint_name = kcu.constraint_name
+    AND tc.table_schema = kcu.table_schema
+WHERE tc.constraint_type = 'UNIQUE'
+  AND tc.table_name = '{{TABLE_NAME}}'
+  AND tc.table_schema = '{{SCHEMA_NAME}}'
+GROUP BY tc.constraint_name;
+
+-- ============================================
+-- INDEX VALIDATION
+-- ============================================
+
+-- List all indexes
+SELECT
+    schemaname,
+    tablename,
+    indexname,
+    indexdef,
+    pg_size_pretty(pg_relation_size(indexname::regclass)) AS index_size
+FROM pg_indexes
+WHERE tablename = '{{TABLE_NAME}}'
+  AND schemaname = '{{SCHEMA_NAME}}'
+ORDER BY indexname;
+
+-- Check index usage statistics
+SELECT
+    schemaname,
+    tablename,
+    indexname,
+    idx_scan AS number_of_scans,
+    idx_tup_read AS tuples_read,
+    idx_tup_fetch AS tuples_fetched,
+    pg_size_pretty(pg_relation_size(indexname::regclass)) AS index_size
+FROM pg_stat_user_indexes
+WHERE tablename = '{{TABLE_NAME}}'
+  AND schemaname = '{{SCHEMA_NAME}}'
+ORDER BY idx_scan ASC;
+
+-- Find unused indexes (potential candidates for removal)
+SELECT
+    schemaname,
+    tablename,
+    indexname,
+    idx_scan,
+    pg_size_pretty(pg_relation_size(indexname::regclass)) AS index_size
+FROM pg_stat_user_indexes
+WHERE tablename = '{{TABLE_NAME}}'
+  AND schemaname = '{{SCHEMA_NAME}}'
+  AND idx_scan = 0
+  AND indexname NOT LIKE '%_pkey'
+ORDER BY pg_relation_size(indexname::regclass) DESC;
+
+-- Check for duplicate indexes
+SELECT
+    pg_size_pretty(SUM(pg_relation_size(idx))::BIGINT) AS total_size,
+    string_agg(indexrelname, ', ') AS indexes,
+    array_agg(indexrelname) AS index_array,
+    indkey::TEXT AS columns
+FROM pg_index idx
+JOIN pg_class cls ON cls.oid = idx.indexrelid
+WHERE indrelid = '{{SCHEMA_NAME}}.{{TABLE_NAME}}'::regclass
+GROUP BY indkey
+HAVING COUNT(*) > 1;
+
+-- ============================================
+-- TRIGGER VALIDATION
+-- ============================================
+
+-- List all triggers
+SELECT
+    trigger_schema,
+    trigger_name,
+    event_manipulation,
+    event_object_table,
+    action_statement,
+    action_timing,
+    action_orientation
+FROM information_schema.triggers
+WHERE event_object_table = '{{TABLE_NAME}}'
+  AND trigger_schema = '{{SCHEMA_NAME}}'
+ORDER BY trigger_name;
+
+-- Get trigger definitions
+SELECT
+    tgname AS trigger_name,
+    pg_get_triggerdef(oid) AS trigger_definition
+FROM pg_trigger
+WHERE tgrelid = '{{SCHEMA_NAME}}.{{TABLE_NAME}}'::regclass
+  AND tgisinternal = false;
+
+-- ============================================
+-- DATA QUALITY VALIDATION
+-- ============================================
+
+-- Check for NULL values in columns that should have data
+SELECT
+    column_name,
+    COUNT(*) AS null_count,
+    ROUND(100.0 * COUNT(*) / (SELECT COUNT(*) FROM {{SCHEMA_NAME}}.{{TABLE_NAME}}), 2) AS null_percentage
+FROM information_schema.columns
+CROSS JOIN {{SCHEMA_NAME}}.{{TABLE_NAME}}
+WHERE table_name = '{{TABLE_NAME}}'
+  AND table_schema = '{{SCHEMA_NAME}}'
+  AND is_nullable = 'YES'
+GROUP BY column_name
+HAVING COUNT(*) > 0
+ORDER BY null_count DESC;
+
+-- Check for duplicate values in columns that should be unique
+-- (Requires customization based on your unique columns)
+-- SELECT column_name, column_value, COUNT(*) AS duplicate_count
+-- FROM (
+--     SELECT unnest(ARRAY['column1', 'column2']) AS column_name,
+--            unnest(ARRAY[column1, column2]) AS column_value
+--     FROM {{SCHEMA_NAME}}.{{TABLE_NAME}}
+-- ) AS subquery
+-- GROUP BY column_name, column_value
+-- HAVING COUNT(*) > 1
+-- ORDER BY duplicate_count DESC;
+
+-- ============================================
+-- REFERENTIAL INTEGRITY VALIDATION
+-- ============================================
+
+-- Check for orphaned records (foreign key violations)
+DO $$
+DECLARE
+    fk_record RECORD;
+    orphan_count INTEGER;
+BEGIN
+    FOR fk_record IN
+        SELECT
+            tc.constraint_name,
+            kcu.column_name,
+            ccu.table_name AS referenced_table,
+            ccu.column_name AS referenced_column
+        FROM information_schema.table_constraints AS tc
+        JOIN information_schema.key_column_usage AS kcu
+            ON tc.constraint_name = kcu.constraint_name
+        JOIN information_schema.constraint_column_usage AS ccu
+            ON ccu.constraint_name = tc.constraint_name
+        WHERE tc.constraint_type = 'FOREIGN KEY'
+          AND tc.table_name = '{{TABLE_NAME}}'
+          AND tc.table_schema = '{{SCHEMA_NAME}}'
+    LOOP
+        EXECUTE format(
+            'SELECT COUNT(*) FROM %I.%I t WHERE %I IS NOT NULL AND NOT EXISTS (SELECT 1 FROM %I.%I r WHERE r.%I = t.%I)',
+            '{{SCHEMA_NAME}}', '{{TABLE_NAME}}', fk_record.column_name,
+            '{{SCHEMA_NAME}}', fk_record.referenced_table, fk_record.referenced_column, fk_record.column_name
+        ) INTO orphan_count;
+
+        IF orphan_count > 0 THEN
+            RAISE NOTICE 'FK %: Found % orphaned records', fk_record.constraint_name, orphan_count;
+        END IF;
+    END LOOP;
+END $$;
+
+-- ============================================
+-- PERFORMANCE METRICS
+-- ============================================
+
+-- Table bloat estimation
+SELECT
+    schemaname,
+    tablename,
+    pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) AS total_size,
+    ROUND(100 * (pg_total_relation_size(schemaname||'.'||tablename) - pg_relation_size(schemaname||'.'||tablename))::NUMERIC /
+          NULLIF(pg_total_relation_size(schemaname||'.'||tablename), 0), 2) AS index_ratio_percentage
+FROM pg_tables
+WHERE tablename = '{{TABLE_NAME}}'
+  AND schemaname = '{{SCHEMA_NAME}}';
+
+-- Sequential vs index scan ratio
+SELECT
+    schemaname,
+    tablename,
+    seq_scan,
+    seq_tup_read,
+    idx_scan,
+    idx_tup_fetch,
+    ROUND(100.0 * idx_scan / NULLIF(seq_scan + idx_scan, 0), 2) AS index_scan_percentage
+FROM pg_stat_user_tables
+WHERE tablename = '{{TABLE_NAME}}'
+  AND schemaname = '{{SCHEMA_NAME}}';
+
+-- ============================================
+-- SUMMARY VALIDATION REPORT
+-- ============================================
+
+SELECT
+    '{{TABLE_NAME}}' AS table_name,
+    (SELECT COUNT(*) FROM information_schema.columns WHERE table_name = '{{TABLE_NAME}}' AND table_schema = '{{SCHEMA_NAME}}') AS column_count,
+    (SELECT COUNT(*) FROM information_schema.table_constraints WHERE table_name = '{{TABLE_NAME}}' AND table_schema = '{{SCHEMA_NAME}}') AS constraint_count,
+    (SELECT COUNT(*) FROM pg_indexes WHERE tablename = '{{TABLE_NAME}}' AND schemaname = '{{SCHEMA_NAME}}') AS index_count,
+    (SELECT COUNT(*) FROM information_schema.triggers WHERE event_object_table = '{{TABLE_NAME}}' AND trigger_schema = '{{SCHEMA_NAME}}') AS trigger_count,
+    pg_size_pretty(pg_total_relation_size('{{SCHEMA_NAME}}.{{TABLE_NAME}}'::regclass)) AS total_size,
+    (SELECT reltuples::BIGINT FROM pg_class WHERE relname = '{{TABLE_NAME}}') AS estimated_row_count;

@@ -1,0 +1,40 @@
+# Backend Team Code Ownership
+# This file defines code ownership and review requirements for the backend team.
+# Lines are evaluated top to bottom, with the last matching pattern taking precedence.
+#
+# Review Requirements:
+# - Standard changes: 1 reviewer required
+# - Breaking changes: 2 reviewers required (indicated in PR description)
+# - API changes: Additional review from API reviewers required
+
+# Default ownership - all backend code
+* @polybase-poc/backend
+
+# API Layer - requires additional API reviewer approval
+/src/main/java/**/api/** @polybase-poc/backend @polybase-poc/api-reviewers
+/src/main/java/**/controller/** @polybase-poc/backend @polybase-poc/api-reviewers
+/src/main/java/**/rest/** @polybase-poc/backend @polybase-poc/api-reviewers
+
+# API Documentation - requires API reviewer approval
+/src/main/resources/openapi/** @polybase-poc/backend @polybase-poc/api-reviewers
+/docs/api/** @polybase-poc/backend @polybase-poc/api-reviewers
+
+# Database Migrations - requires additional scrutiny
+/src/main/resources/db/migration/** @polybase-poc/backend @polybase-poc/backend-leads
+
+# Security-sensitive code - requires security team review
+/src/main/java/**/security/** @polybase-poc/backend @polybase-poc/security
+/src/main/java/**/auth/** @polybase-poc/backend @polybase-poc/security
+
+# Configuration files - requires lead approval
+/src/main/resources/application*.yml @polybase-poc/backend @polybase-poc/backend-leads
+/src/main/resources/application*.properties @polybase-poc/backend @polybase-poc/backend-leads
+
+# CI/CD Configuration - requires DevOps review
+/.github/workflows/** @polybase-poc/backend @polybase-poc/devops
+/Dockerfile @polybase-poc/backend @polybase-poc/devops
+/docker-compose*.yml @polybase-poc/backend @polybase-poc/devops
+
+# Dependency Management - requires lead approval for security
+/pom.xml @polybase-poc/backend @polybase-poc/backend-leads
+/gradle.properties @polybase-poc/backend @polybase-poc/backend-leads

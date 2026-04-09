@@ -1,0 +1,104 @@
+-- Template: Migration Up
+-- Description: Schema evolution and data migration script
+-- Variables: {{MIGRATION_ID}}, {{DESCRIPTION}}, {{MIGRATION_CHANGES}}
+
+-- Migration ID: {{MIGRATION_ID}}
+-- Description: {{DESCRIPTION}}
+-- Date: {{DATE}}
+-- Author: {{AUTHOR}}
+
+BEGIN;
+
+-- Version tracking
+INSERT INTO schema_migrations (version, description, applied_at)
+VALUES ('{{MIGRATION_ID}}', '{{DESCRIPTION}}', CURRENT_TIMESTAMP)
+ON CONFLICT (version) DO NOTHING;
+
+-- ============================================
+-- SCHEMA CHANGES
+-- ============================================
+
+{{MIGRATION_CHANGES}}
+
+-- Example: Create new table
+-- CREATE TABLE IF NOT EXISTS new_table (
+--     id BIGSERIAL PRIMARY KEY,
+--     name VARCHAR(255) NOT NULL,
+--     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+--     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+-- );
+
+-- Example: Add column to existing table
+-- ALTER TABLE existing_table
+-- ADD COLUMN IF NOT EXISTS new_column VARCHAR(255);
+
+-- Example: Modify column (requires dropping default/constraints first)
+-- ALTER TABLE existing_table
+-- ALTER COLUMN column_name TYPE TEXT;
+
+-- Example: Rename column
+-- ALTER TABLE existing_table
+-- RENAME COLUMN old_column_name TO new_column_name;
+
+-- Example: Add constraint
+-- ALTER TABLE existing_table
+-- ADD CONSTRAINT chk_column_name CHECK (column_name > 0);
+
+-- Example: Create index
+-- CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_table_column
+-- ON table_name(column_name);
+
+-- ============================================
+-- DATA MIGRATIONS
+-- ============================================
+
+-- Example: Backfill data
+-- UPDATE existing_table
+-- SET new_column = 'default_value'
+-- WHERE new_column IS NULL;
+
+-- Example: Migrate data from old structure to new
+-- INSERT INTO new_table (id, name, created_at)
+-- SELECT id, old_name, created_at
+-- FROM old_table
+-- WHERE migrated = FALSE;
+
+-- Example: Update with complex logic
+-- UPDATE table_name
+-- SET status = CASE
+--     WHEN condition1 THEN 'value1'
+--     WHEN condition2 THEN 'value2'
+--     ELSE 'default_value'
+-- END
+-- WHERE status IS NULL;
+
+-- ============================================
+-- POST-MIGRATION VALIDATION
+-- ============================================
+
+-- Validate row counts
+DO $$
+DECLARE
+    row_count INTEGER;
+BEGIN
+    -- SELECT COUNT(*) INTO row_count FROM new_table;
+    -- RAISE NOTICE 'New table has % rows', row_count;
+
+    -- Add validation assertions
+    -- IF row_count = 0 THEN
+    --     RAISE EXCEPTION 'Migration validation failed: Expected data in new_table';
+    -- END IF;
+END $$;
+
+-- ============================================
+-- GRANT PERMISSIONS
+-- ============================================
+
+-- Example: Grant table permissions
+-- GRANT SELECT, INSERT, UPDATE, DELETE ON new_table TO app_user;
+-- GRANT USAGE, SELECT ON SEQUENCE new_table_id_seq TO app_user;
+
+COMMIT;
+
+-- Post-commit operations (if needed, run outside transaction)
+-- VACUUM ANALYZE new_table;

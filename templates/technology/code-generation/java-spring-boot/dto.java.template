@@ -1,0 +1,79 @@
+package {{PACKAGE_NAME}}.dto;
+
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import javax.validation.constraints.*;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
+/**
+ * Request DTO for {{ENTITY_NAME}} entity.
+ * Used for create and update operations.
+ *
+ * @author Generated
+ * @version 1.0
+ */
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+@JsonInclude(JsonInclude.Include.NON_NULL)
+@Schema(description = "Request DTO for {{ENTITY_NAME}} operations")
+public class {{DTO_NAME}}Request {
+
+    {{FIELDS}}
+
+}
+
+/*
+ * Example field definitions for {{FIELDS}} placeholder:
+ *
+ *     @Schema(description = "Name of the entity", example = "Sample Name", required = true)
+ *     @NotBlank(message = "Name cannot be blank")
+ *     @Size(min = 2, max = 255, message = "Name must be between 2 and 255 characters")
+ *     private String name;
+ *
+ *     @Schema(description = "Email address", example = "user@example.com", required = true)
+ *     @Email(message = "Email must be valid")
+ *     @NotBlank(message = "Email cannot be blank")
+ *     private String email;
+ *
+ *     @Schema(description = "Amount value", example = "99.99", required = true)
+ *     @NotNull(message = "Amount cannot be null")
+ *     @DecimalMin(value = "0.00", inclusive = true, message = "Amount must be positive or zero")
+ *     @DecimalMax(value = "999999.99", inclusive = true, message = "Amount must not exceed 999999.99")
+ *     @Digits(integer = 6, fraction = 2, message = "Amount must have at most 6 integer digits and 2 fractional digits")
+ *     private BigDecimal amount;
+ *
+ *     @Schema(description = "Status of the entity", example = "ACTIVE", required = true)
+ *     @NotNull(message = "Status cannot be null")
+ *     private Status status;
+ *
+ *     @Schema(description = "Whether the entity is active", example = "true")
+ *     private Boolean active;
+ *
+ *     @Schema(description = "Description text", example = "This is a description", maxLength = 1000)
+ *     @Size(max = 1000, message = "Description must not exceed 1000 characters")
+ *     private String description;
+ *
+ *     @Schema(description = "Processing date and time", example = "2024-01-15T10:30:00")
+ *     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
+ *     private LocalDateTime processedAt;
+ *
+ *     @Schema(description = "Parent entity ID", example = "123")
+ *     @Positive(message = "Parent ID must be positive")
+ *     private Long parentId;
+ *
+ *     @Schema(description = "Tags or labels", example = "[\"tag1\", \"tag2\"]")
+ *     @Size(max = 10, message = "Cannot have more than 10 tags")
+ *     private List<String> tags;
+ *
+ *     @Schema(description = "Version for optimistic locking", example = "1")
+ *     private Long version;
+ */

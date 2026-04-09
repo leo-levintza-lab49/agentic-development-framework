@@ -1,0 +1,72 @@
+# Platform SRE Team - Code Ownership
+#
+# This file defines code ownership for the Platform SRE team.
+# 2 reviewers required for standard changes
+# 3 reviewers required for high-impact production infrastructure changes
+#
+# Documentation: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default ownership - all files require Platform SRE and Security review
+* @polybase-poc/platform-sre @polybase-poc/security
+
+# Terraform configurations
+/terraform/ @polybase-poc/platform-sre @polybase-poc/security
+
+# Production Terraform - requires additional Engineering Leads approval
+/terraform/production/** @polybase-poc/platform-sre @polybase-poc/security @polybase-poc/engineering-leads
+/terraform/modules/production-* @polybase-poc/platform-sre @polybase-poc/security @polybase-poc/engineering-leads
+
+# Kubernetes manifests and Helm charts
+/k8s/ @polybase-poc/platform-sre @polybase-poc/security
+/helm/ @polybase-poc/platform-sre @polybase-poc/security
+
+# Production Kubernetes - requires Engineering Leads approval
+/k8s/production/ @polybase-poc/platform-sre @polybase-poc/security @polybase-poc/engineering-leads
+/k8s/overlays/prod/ @polybase-poc/platform-sre @polybase-poc/security @polybase-poc/engineering-leads
+
+# Infrastructure as Code
+/iac/ @polybase-poc/platform-sre @polybase-poc/security
+/cloudformation/ @polybase-poc/platform-sre @polybase-poc/security
+/pulumi/ @polybase-poc/platform-sre @polybase-poc/security
+
+# CI/CD pipelines and automation
+/.github/workflows/ @polybase-poc/platform-sre @polybase-poc/security
+/.gitlab-ci.yml @polybase-poc/platform-sre @polybase-poc/security
+/jenkins/ @polybase-poc/platform-sre @polybase-poc/security
+/buildkite/ @polybase-poc/platform-sre @polybase-poc/security
+
+# Security-critical configurations
+/security/ @polybase-poc/security @polybase-poc/platform-sre @polybase-poc/engineering-leads
+/vault/ @polybase-poc/security @polybase-poc/platform-sre @polybase-poc/engineering-leads
+/secrets/ @polybase-poc/security @polybase-poc/platform-sre @polybase-poc/engineering-leads
+
+# Network and VPC configurations
+/terraform/network/ @polybase-poc/platform-sre @polybase-poc/security @polybase-poc/network-team
+/terraform/vpc/ @polybase-poc/platform-sre @polybase-poc/security @polybase-poc/network-team
+
+# Database infrastructure
+/terraform/databases/ @polybase-poc/platform-sre @polybase-poc/data-team @polybase-poc/security
+/terraform/rds/ @polybase-poc/platform-sre @polybase-poc/data-team @polybase-poc/security
+
+# Monitoring and observability
+/terraform/monitoring/ @polybase-poc/platform-sre
+/prometheus/ @polybase-poc/platform-sre
+/grafana/ @polybase-poc/platform-sre
+/alerting/ @polybase-poc/platform-sre @polybase-poc/on-call
+
+# Disaster recovery and backup configurations
+/terraform/backup/ @polybase-poc/platform-sre @polybase-poc/engineering-leads
+/terraform/dr/ @polybase-poc/platform-sre @polybase-poc/engineering-leads
+
+# Documentation
+/docs/ @polybase-poc/platform-sre
+/runbooks/ @polybase-poc/platform-sre @polybase-poc/on-call
+/incident-response/ @polybase-poc/platform-sre @polybase-poc/on-call
+
+# Scripts and automation tools
+/scripts/ @polybase-poc/platform-sre
+/tools/ @polybase-poc/platform-sre
+
+# Cost optimization
+/cost-reports/ @polybase-poc/platform-sre @polybase-poc/finops
+/terraform/budgets/ @polybase-poc/platform-sre @polybase-poc/finops

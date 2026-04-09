@@ -1,0 +1,283 @@
+name: Data Platform CI
+
+on:
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - 'migrations/**'
+      - 'schemas/**'
+      - 'pipelines/**'
+      - 'tests/**'
+  push:
+    branches: [main]
+
+env:
+  POSTGRES_VERSION: "15"
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  sql-lint:
+    name: SQL Linting
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up SQLFluff
+        run: |
+          pip install sqlfluff sqlfluff-templater-dbt
+
+      - name: Run SQLFluff linter
+        run: |
+          sqlfluff lint migrations/ schemas/ \
+            --dialect postgres \
+            --rules L001,L002,L003,L004,L005,L006,L007,L008,L009,L010
+
+      - name: Check SQL formatting
+        run: |
+          sqlfluff fix migrations/ schemas/ \
+            --dialect postgres \
+            --check
+
+  migration-validation:
+    name: Migration Validation
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          pip install psycopg2-binary alembic pytest pytest-cov
+
+      - name: Validate migration files
+        run: |
+          python scripts/validate_migrations.py
+
+      - name: Check for migration conflicts
+        run: |
+          python scripts/check_migration_conflicts.py
+
+      - name: Run migrations up
+        env:
+          DATABASE_URL: postgresql://postgres:testpassword@localhost:5432/test_db
+        run: |
+          alembic upgrade head
+
+      - name: Verify migration rollback scripts
+        env:
+          DATABASE_URL: postgresql://postgres:testpassword@localhost:5432/test_db
+        run: |
+          python scripts/test_rollbacks.py
+
+      - name: Test rollback (downgrade one revision)
+        env:
+          DATABASE_URL: postgresql://postgres:testpassword@localhost:5432/test_db
+        run: |
+          alembic downgrade -1
+          alembic upgrade head
+
+  schema-diff:
+    name: Schema Diff & Validation
+    runs-on: ubuntu-latest
+    services:
+      postgres-base:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: base_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5433:5432
+
+      postgres-target:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: target_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5434:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          pip install psycopg2-binary alembic migra
+
+      - name: Apply base schema (main branch)
+        env:
+          DATABASE_URL: postgresql://postgres:testpassword@localhost:5433/base_db
+        run: |
+          git checkout main
+          alembic upgrade head
+          git checkout -
+
+      - name: Apply target schema (current branch)
+        env:
+          DATABASE_URL: postgresql://postgres:testpassword@localhost:5434/target_db
+        run: |
+          alembic upgrade head
+
+      - name: Generate schema diff
+        run: |
+          migra \
+            postgresql://postgres:testpassword@localhost:5433/base_db \
+            postgresql://postgres:testpassword@localhost:5434/target_db \
+            --unsafe > schema_diff.sql
+
+          if [ -s schema_diff.sql ]; then
+            echo "Schema differences detected:"
+            cat schema_diff.sql
+            echo "schema_changes=true" >> $GITHUB_ENV
+          else
+            echo "No schema differences detected"
+            echo "schema_changes=false" >> $GITHUB_ENV
+          fi
+
+      - name: Validate breaking changes
+        if: env.schema_changes == 'true'
+        run: |
+          python scripts/validate_breaking_changes.py schema_diff.sql
+
+      - name: Upload schema diff
+        if: env.schema_changes == 'true'
+        uses: actions/upload-artifact@v3
+        with:
+          name: schema-diff
+          path: schema_diff.sql
+
+  test-coverage:
+    name: Test Coverage
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements-dev.txt
+
+      - name: Run tests with coverage
+        env:
+          DATABASE_URL: postgresql://postgres:testpassword@localhost:5432/test_db
+        run: |
+          pytest tests/ \
+            --cov=migrations \
+            --cov=pipelines \
+            --cov-report=xml \
+            --cov-report=html \
+            --cov-report=term \
+            --cov-fail-under=80
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage.xml
+          flags: migrations
+          fail_ci_if_error: true
+
+  data-quality-checks:
+    name: Data Quality Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Great Expectations
+        run: |
+          pip install great-expectations
+
+      - name: Run data quality checks
+        run: |
+          python scripts/run_data_quality_checks.py
+
+      - name: Validate data contracts
+        run: |
+          python scripts/validate_data_contracts.py
+
+  security-scan:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run SQL injection vulnerability scan
+        run: |
+          pip install bandit sqlmap
+          bandit -r . -f json -o bandit-report.json
+
+      - name: Check for secrets in migrations
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+
+      - name: Upload security report
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-report
+          path: bandit-report.json

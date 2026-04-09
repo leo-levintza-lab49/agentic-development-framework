@@ -1,0 +1,383 @@
+import { Request, Response, NextFunction } from 'express';
+import jwt from 'jsonwebtoken';
+import { ApiError } from '../errors/ApiError';
+import { logger } from '../utils/logger';
+import { v4 as uuidv4 } from 'uuid';
+
+// Extend Express Request type to include user and requestId
+declare global {
+  namespace Express {
+    interface Request {
+      user?: JwtPayload;
+      requestId?: string;
+    }
+  }
+}
+
+interface JwtPayload {
+  userId: string;
+  email: string;
+  roles: string[];
+  iat?: number;
+  exp?: number;
+}
+
+/**
+ * Authentication Middleware - JWT Validation
+ * Validates JWT tokens and attaches user information to the request
+ */
+export const authenticate = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader) {
+      throw new ApiError(401, 'No authorization header provided');
+    }
+
+    const token = authHeader.startsWith('Bearer ')
+      ? authHeader.substring(7)
+      : authHeader;
+
+    if (!token) {
+      throw new ApiError(401, 'No token provided');
+    }
+
+    const jwtSecret = process.env.JWT_SECRET;
+    if (!jwtSecret) {
+      logger.error('JWT_SECRET not configured');
+      throw new ApiError(500, 'Authentication configuration error');
+    }
+
+    // Verify and decode the token
+    const decoded = jwt.verify(token, jwtSecret) as JwtPayload;
+
+    // Attach user information to request
+    req.user = decoded;
+
+    logger.debug('User authenticated', {
+      userId: decoded.userId,
+      roles: decoded.roles,
+      requestId: req.requestId
+    });
+
+    next();
+  } catch (error) {
+    if (error instanceof jwt.JsonWebTokenError) {
+      logger.warn('Invalid JWT token', { error: error.message });
+      next(new ApiError(401, 'Invalid token'));
+    } else if (error instanceof jwt.TokenExpiredError) {
+      logger.warn('Expired JWT token', { expiredAt: error.expiredAt });
+      next(new ApiError(401, 'Token expired'));
+    } else {
+      next(error);
+    }
+  }
+};
+
+/**
+ * Authorization Middleware - Role-Based Access Control
+ * Checks if user has required roles
+ */
+export const authorize = (...allowedRoles: string[]) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    try {
+      if (!req.user) {
+        throw new ApiError(401, 'User not authenticated');
+      }
+
+      const userRoles = req.user.roles || [];
+      const hasRole = allowedRoles.some(role => userRoles.includes(role));
+
+      if (!hasRole) {
+        logger.warn('User unauthorized', {
+          userId: req.user.userId,
+          userRoles,
+          requiredRoles: allowedRoles,
+          requestId: req.requestId
+        });
+        throw new ApiError(403, 'Insufficient permissions');
+      }
+
+      logger.debug('User authorized', {
+        userId: req.user.userId,
+        roles: userRoles,
+        requestId: req.requestId
+      });
+
+      next();
+    } catch (error) {
+      next(error);
+    }
+  };
+};
+
+/**
+ * Request Logging Middleware
+ * Logs incoming requests and outgoing responses
+ */
+export const requestLogger = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void => {
+  const requestId = uuidv4();
+  req.requestId = requestId;
+
+  const startTime = Date.now();
+
+  // Log incoming request
+  logger.info('Incoming request', {
+    requestId,
+    method: req.method,
+    url: req.url,
+    path: req.path,
+    query: req.query,
+    ip: req.ip,
+    userAgent: req.get('user-agent'),
+    userId: req.user?.userId
+  });
+
+  // Capture response
+  const originalSend = res.send;
+  res.send = function (data: any): Response {
+    const duration = Date.now() - startTime;
+
+    logger.info('Outgoing response', {
+      requestId,
+      method: req.method,
+      url: req.url,
+      statusCode: res.statusCode,
+      duration,
+      userId: req.user?.userId
+    });
+
+    return originalSend.call(this, data);
+  };
+
+  next();
+};
+
+/**
+ * Error Handling Middleware
+ * Catches and formats errors for API responses
+ */
+export const errorHandler = (
+  error: Error | ApiError,
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void => {
+  // Default error values
+  let statusCode = 500;
+  let message = 'Internal server error';
+  let details: any = undefined;
+
+  // Handle ApiError
+  if (error instanceof ApiError) {
+    statusCode = error.statusCode;
+    message = error.message;
+    details = error.details;
+  }
+
+  // Log the error
+  logger.error('Error occurred', {
+    requestId: req.requestId,
+    method: req.method,
+    url: req.url,
+    statusCode,
+    message,
+    stack: error.stack,
+    userId: req.user?.userId
+  });
+
+  // Send error response
+  res.status(statusCode).json({
+    success: false,
+    error: {
+      message,
+      ...(details && { details }),
+      ...(process.env.NODE_ENV === 'development' && { stack: error.stack })
+    },
+    requestId: req.requestId
+  });
+};
+
+/**
+ * Not Found Middleware
+ * Handles 404 errors for undefined routes
+ */
+export const notFound = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void => {
+  logger.warn('Route not found', {
+    requestId: req.requestId,
+    method: req.method,
+    url: req.url
+  });
+
+  next(new ApiError(404, `Route ${req.method} ${req.url} not found`));
+};
+
+/**
+ * Rate Limiting Middleware
+ * Simple in-memory rate limiter (use Redis for production)
+ */
+const rateLimitStore = new Map<string, { count: number; resetTime: number }>();
+
+export const rateLimit = (options: {
+  windowMs: number;
+  maxRequests: number;
+}) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    const key = req.ip || 'unknown';
+    const now = Date.now();
+
+    const record = rateLimitStore.get(key);
+
+    if (!record || now > record.resetTime) {
+      rateLimitStore.set(key, {
+        count: 1,
+        resetTime: now + options.windowMs
+      });
+      next();
+      return;
+    }
+
+    if (record.count >= options.maxRequests) {
+      logger.warn('Rate limit exceeded', {
+        ip: key,
+        requestId: req.requestId
+      });
+      res.status(429).json({
+        success: false,
+        error: {
+          message: 'Too many requests, please try again later',
+          retryAfter: Math.ceil((record.resetTime - now) / 1000)
+        }
+      });
+      return;
+    }
+
+    record.count++;
+    next();
+  };
+};
+
+/**
+ * Request Validation Middleware
+ * Validates request body size and content type
+ */
+export const validateRequest = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void => {
+  // Check content type for POST/PUT/PATCH requests
+  if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
+    const contentType = req.get('content-type');
+    if (contentType && !contentType.includes('application/json')) {
+      next(new ApiError(415, 'Unsupported media type. Expected application/json'));
+      return;
+    }
+  }
+
+  next();
+};
+
+/**
+ * CORS Middleware (custom implementation)
+ * Handles Cross-Origin Resource Sharing
+ */
+export const cors = (options?: {
+  origin?: string | string[];
+  methods?: string[];
+  credentials?: boolean;
+}) => {
+  const defaultOptions = {
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    credentials: true,
+    ...options
+  };
+
+  return (req: Request, res: Response, next: NextFunction): void => {
+    const origin = req.get('origin');
+
+    if (Array.isArray(defaultOptions.origin)) {
+      if (origin && defaultOptions.origin.includes(origin)) {
+        res.setHeader('Access-Control-Allow-Origin', origin);
+      }
+    } else {
+      res.setHeader('Access-Control-Allow-Origin', defaultOptions.origin);
+    }
+
+    res.setHeader('Access-Control-Allow-Methods', defaultOptions.methods.join(', '));
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+    if (defaultOptions.credentials) {
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
+    }
+
+    // Handle preflight requests
+    if (req.method === 'OPTIONS') {
+      res.sendStatus(204);
+      return;
+    }
+
+    next();
+  };
+};
+
+/**
+ * Request Timeout Middleware
+ * Sets a timeout for requests
+ */
+export const timeout = (ms: number) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    const timer = setTimeout(() => {
+      logger.error('Request timeout', {
+        requestId: req.requestId,
+        method: req.method,
+        url: req.url,
+        timeout: ms
+      });
+
+      if (!res.headersSent) {
+        res.status(408).json({
+          success: false,
+          error: {
+            message: 'Request timeout'
+          },
+          requestId: req.requestId
+        });
+      }
+    }, ms);
+
+    res.on('finish', () => {
+      clearTimeout(timer);
+    });
+
+    next();
+  };
+};
+
+/**
+ * Cache Control Middleware
+ * Sets cache headers for responses
+ */
+export const cacheControl = (maxAge: number) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    if (req.method === 'GET') {
+      res.setHeader('Cache-Control', `public, max-age=${maxAge}`);
+    } else {
+      res.setHeader('Cache-Control', 'no-store');
+    }
+    next();
+  };
+};

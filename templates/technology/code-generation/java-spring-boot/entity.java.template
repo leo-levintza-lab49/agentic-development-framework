@@ -1,0 +1,90 @@
+package {{PACKAGE_NAME}}.domain.entity;
+
+import {{PACKAGE_NAME}}.domain.entity.base.BaseEntity;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.NoArgsConstructor;
+import lombok.experimental.SuperBuilder;
+
+import javax.persistence.*;
+import javax.validation.constraints.*;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
+/**
+ * Entity class representing {{ENTITY_NAME}} in the database.
+ *
+ * @author Generated
+ * @version 1.0
+ */
+@Entity
+@Table(name = "{{TABLE_NAME}}",
+       indexes = {
+           @Index(name = "idx_{{TABLE_NAME}}_created_at", columnList = "created_at"),
+           @Index(name = "idx_{{TABLE_NAME}}_updated_at", columnList = "updated_at")
+       })
+@Data
+@SuperBuilder
+@NoArgsConstructor
+@AllArgsConstructor
+@EqualsAndHashCode(callSuper = true)
+public class {{ENTITY_NAME}} extends BaseEntity {
+
+    {{FIELDS}}
+
+    /**
+     * Lifecycle callback executed before persisting the entity.
+     */
+    @PrePersist
+    protected void onCreate() {
+        super.onCreate();
+        // Add custom pre-persist logic here if needed
+    }
+
+    /**
+     * Lifecycle callback executed before updating the entity.
+     */
+    @PreUpdate
+    protected void onUpdate() {
+        super.onUpdate();
+        // Add custom pre-update logic here if needed
+    }
+}
+
+/*
+ * Example field definitions for {{FIELDS}} placeholder:
+ *
+ *     @Column(name = "name", nullable = false, length = 255)
+ *     @NotBlank(message = "Name cannot be blank")
+ *     @Size(min = 2, max = 255, message = "Name must be between 2 and 255 characters")
+ *     private String name;
+ *
+ *     @Column(name = "email", nullable = false, unique = true, length = 255)
+ *     @Email(message = "Email must be valid")
+ *     @NotBlank(message = "Email cannot be blank")
+ *     private String email;
+ *
+ *     @Column(name = "amount", precision = 19, scale = 2)
+ *     @NotNull(message = "Amount cannot be null")
+ *     @DecimalMin(value = "0.00", inclusive = true, message = "Amount must be positive")
+ *     private BigDecimal amount;
+ *
+ *     @Column(name = "status", nullable = false, length = 50)
+ *     @Enumerated(EnumType.STRING)
+ *     @NotNull(message = "Status cannot be null")
+ *     private Status status;
+ *
+ *     @Column(name = "is_active", nullable = false)
+ *     private Boolean active = true;
+ *
+ *     @Column(name = "processed_at")
+ *     private LocalDateTime processedAt;
+ *
+ *     @ManyToOne(fetch = FetchType.LAZY)
+ *     @JoinColumn(name = "parent_id", nullable = true)
+ *     private ParentEntity parent;
+ *
+ *     @OneToMany(mappedBy = "parent", cascade = CascadeType.ALL, orphanRemoval = true)
+ *     private List<ChildEntity> children = new ArrayList<>();
+ */

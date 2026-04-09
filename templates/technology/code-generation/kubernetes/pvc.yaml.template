@@ -1,0 +1,30 @@
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{PVC_NAME}}
+  labels:
+    app: {{APP_NAME}}
+  annotations:
+    {{ANNOTATIONS}}
+spec:
+  accessModes:
+    - {{ACCESS_MODE}}
+  storageClassName: {{STORAGE_CLASS}}
+  resources:
+    requests:
+      storage: {{STORAGE_SIZE}}
+  {{VOLUME_MODE}}
+  {{SELECTOR}}
+  # Example configurations:
+  # accessModes:
+  #   - ReadWriteOnce (RWO): Volume can be mounted as read-write by a single node
+  #   - ReadOnlyMany (ROX): Volume can be mounted read-only by many nodes
+  #   - ReadWriteMany (RWX): Volume can be mounted as read-write by many nodes
+  #   - ReadWriteOncePod (RWOP): Volume can be mounted as read-write by a single Pod
+  #
+  # storageClassName examples:
+  #   - gp2, gp3 (AWS EBS)
+  #   - standard, premium (Azure)
+  #   - standard, ssd (GCP)
+  #   - local-path (local storage)

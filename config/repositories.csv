@@ -1,0 +1,42 @@
+# Repository Specification for GitHub Infrastructure Setup
+# Format: org,name,type,description,visibility,team
+#
+# Types: java-service, node-service, react-app, database, terraform, mobile-ios, mobile-android, config, monorepo
+# Visibility: private, public
+# Team: data-platform, backend, bff, frontend, mobile, platform
+
+# Monorepo Organization (omnibase-poc)
+omnibase-poc,enterprise-monorepo,monorepo,"Enterprise unified monorepo with all teams and services",private,all
+
+# Multi-Repo Organization (polybase-poc) - Data Platform Team
+polybase-poc,db-schemas,database,"Database schemas and table definitions",private,data-platform
+polybase-poc,db-migrations,database,"Database migration scripts using Liquibase",private,data-platform
+
+# Multi-Repo Organization (polybase-poc) - Backend Services Team
+polybase-poc,user-service,java-service,"User management and profile microservice",private,backend
+polybase-poc,auth-service,java-service,"Authentication and authorization service with JWT",private,backend
+polybase-poc,order-service,java-service,"Order processing and management service",private,backend
+polybase-poc,payment-service,java-service,"Payment processing and transaction service",private,backend
+polybase-poc,notification-service,java-service,"Notification delivery service (email, SMS, push)",private,backend
+
+# Multi-Repo Organization (polybase-poc) - BFF Team
+polybase-poc,web-bff,node-service,"Backend-for-Frontend for web application",private,bff
+polybase-poc,mobile-bff,node-service,"Backend-for-Frontend for mobile applications",private,bff
+polybase-poc,graphql-gateway,node-service,"GraphQL API gateway and schema stitching",private,bff
+
+# Multi-Repo Organization (polybase-poc) - Frontend Team
+polybase-poc,web-app,react-app,"Main web application built with React and Vite",private,frontend
+polybase-poc,component-library,react-app,"Shared React component library and design system",private,frontend
+
+# Multi-Repo Organization (polybase-poc) - Mobile Team
+polybase-poc,ios-app,mobile-ios,"iOS mobile application",private,mobile
+polybase-poc,android-app,mobile-android,"Android mobile application",private,mobile
+polybase-poc,mobile-shared,node-service,"Shared mobile utilities and React Native components",private,mobile
+
+# Multi-Repo Organization (polybase-poc) - Platform/SRE Team
+polybase-poc,terraform-aws-infrastructure,terraform,"Terraform modules for AWS infrastructure",private,platform
+polybase-poc,grafana-dashboards,config,"Grafana dashboard configurations as code",private,platform
+polybase-poc,prometheus-alerts,config,"Prometheus alerting rules and configurations",private,platform
+
+# Multi-Repo Organization (polybase-poc) - Shared Configurations
+polybase-poc,claude-configs-shared,config,"Shared Claude Code configurations and rules",private,all

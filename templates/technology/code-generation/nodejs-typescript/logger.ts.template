@@ -1,0 +1,136 @@
+import winston from 'winston';
+import path from 'path';
+
+const { combine, timestamp, printf, colorize, json, errors } = winston.format;
+
+/**
+ * Custom log format for console output
+ */
+const consoleFormat = printf(({ level, message, timestamp, ...metadata }) => {
+  let msg = `${timestamp} [${level}]: ${message}`;
+
+  if (Object.keys(metadata).length > 0) {
+    msg += ` ${JSON.stringify(metadata)}`;
+  }
+
+  return msg;
+});
+
+/**
+ * Create Winston logger instance
+ */
+export const logger = winston.createLogger({
+  level: process.env.LOG_LEVEL || 'info',
+  format: combine(
+    errors({ stack: true }),
+    timestamp({ format: 'YYYY-MM-DD HH:mm:ss' })
+  ),
+  defaultMeta: {
+    service: process.env.SERVICE_NAME || '{{SERVICE_NAME}}',
+    environment: process.env.NODE_ENV || 'development'
+  },
+  transports: [
+    // Console transport
+    new winston.transports.Console({
+      format: combine(
+        colorize(),
+        consoleFormat
+      )
+    })
+  ],
+  exitOnError: false
+});
+
+/**
+ * Add file transport for production
+ */
+if (process.env.NODE_ENV === 'production') {
+  const logsDir = path.join(process.cwd(), 'logs');
+
+  // Error log file
+  logger.add(new winston.transports.File({
+    filename: path.join(logsDir, 'error.log'),
+    level: 'error',
+    format: combine(
+      timestamp(),
+      json()
+    ),
+    maxsize: 10485760, // 10MB
+    maxFiles: 5
+  }));
+
+  // Combined log file
+  logger.add(new winston.transports.File({
+    filename: path.join(logsDir, 'combined.log'),
+    format: combine(
+      timestamp(),
+      json()
+    ),
+    maxsize: 10485760, // 10MB
+    maxFiles: 10
+  }));
+}
+
+/**
+ * Add structured logging for cloud environments
+ */
+if (process.env.LOG_FORMAT === 'json') {
+  logger.format = combine(
+    errors({ stack: true }),
+    timestamp(),
+    json()
+  );
+}
+
+/**
+ * Stream for Morgan HTTP logger
+ */
+export const stream = {
+  write: (message: string): void => {
+    logger.info(message.trim());
+  }
+};
+
+/**
+ * Log context helper for adding correlation IDs
+ */
+export const createLogContext = (requestId?: string, userId?: string) => {
+  return {
+    requestId,
+    userId
+  };
+};
+
+/**
+ * Performance logger helper
+ */
+export class PerformanceLogger {
+  private startTime: number;
+  private operation: string;
+
+  constructor(operation: string) {
+    this.operation = operation;
+    this.startTime = Date.now();
+    logger.debug(`Starting operation: ${operation}`);
+  }
+
+  finish(metadata?: Record<string, any>): void {
+    const duration = Date.now() - this.startTime;
+    logger.info(`Completed operation: ${this.operation}`, {
+      duration,
+      ...metadata
+    });
+  }
+
+  error(error: Error, metadata?: Record<string, any>): void {
+    const duration = Date.now() - this.startTime;
+    logger.error(`Failed operation: ${this.operation}`, {
+      duration,
+      error: error.message,
+      stack: error.stack,
+      ...metadata
+    });
+  }
+}
+
+export default logger;

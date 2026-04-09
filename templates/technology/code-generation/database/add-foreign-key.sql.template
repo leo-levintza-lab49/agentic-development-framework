@@ -1,0 +1,234 @@
+-- Template: Add Foreign Key Constraint
+-- Description: Create foreign key relationships with referential integrity
+-- Variables: {{FK_NAME}}, {{TABLE_NAME}}, {{COLUMN_NAME}}, {{REF_TABLE}}, {{REF_COLUMN}}
+
+-- Foreign Key: {{FK_NAME}}
+-- Description: {{DESCRIPTION}}
+-- Relationship: {{TABLE_NAME}}.{{COLUMN_NAME}} -> {{REF_TABLE}}.{{REF_COLUMN}}
+
+-- ============================================
+-- PRE-CONSTRAINT VALIDATION
+-- ============================================
+
+-- Check for orphaned records (records that would violate the FK)
+SELECT COUNT(*) AS orphaned_records
+FROM {{TABLE_NAME}} t
+WHERE {{COLUMN_NAME}} IS NOT NULL
+  AND NOT EXISTS (
+      SELECT 1
+      FROM {{REF_TABLE}} r
+      WHERE r.{{REF_COLUMN}} = t.{{COLUMN_NAME}}
+  );
+
+-- View orphaned records for cleanup
+SELECT t.*
+FROM {{TABLE_NAME}} t
+WHERE {{COLUMN_NAME}} IS NOT NULL
+  AND NOT EXISTS (
+      SELECT 1
+      FROM {{REF_TABLE}} r
+      WHERE r.{{REF_COLUMN}} = t.{{COLUMN_NAME}}
+  )
+LIMIT 10;
+
+-- ============================================
+-- DATA CLEANUP (if orphaned records exist)
+-- ============================================
+
+-- Option 1: Set orphaned references to NULL
+-- UPDATE {{TABLE_NAME}} t
+-- SET {{COLUMN_NAME}} = NULL
+-- WHERE {{COLUMN_NAME}} IS NOT NULL
+--   AND NOT EXISTS (
+--       SELECT 1
+--       FROM {{REF_TABLE}} r
+--       WHERE r.{{REF_COLUMN}} = t.{{COLUMN_NAME}}
+--   );
+
+-- Option 2: Delete orphaned records
+-- DELETE FROM {{TABLE_NAME}} t
+-- WHERE {{COLUMN_NAME}} IS NOT NULL
+--   AND NOT EXISTS (
+--       SELECT 1
+--       FROM {{REF_TABLE}} r
+--       WHERE r.{{REF_COLUMN}} = t.{{COLUMN_NAME}}
+--   );
+
+-- Option 3: Create placeholder records in reference table
+-- INSERT INTO {{REF_TABLE}} ({{REF_COLUMN}}, name, created_at)
+-- SELECT DISTINCT {{COLUMN_NAME}}, 'Placeholder', NOW()
+-- FROM {{TABLE_NAME}}
+-- WHERE {{COLUMN_NAME}} IS NOT NULL
+--   AND NOT EXISTS (
+--       SELECT 1
+--       FROM {{REF_TABLE}} r
+--       WHERE r.{{REF_COLUMN}} = {{TABLE_NAME}}.{{COLUMN_NAME}}
+--   );
+
+-- ============================================
+-- ADD FOREIGN KEY CONSTRAINT
+-- ============================================
+
+-- Standard foreign key with CASCADE delete
+ALTER TABLE {{TABLE_NAME}}
+ADD CONSTRAINT {{FK_NAME}}
+    FOREIGN KEY ({{COLUMN_NAME}})
+    REFERENCES {{REF_TABLE}} ({{REF_COLUMN}})
+    ON DELETE CASCADE
+    ON UPDATE CASCADE;
+
+-- Alternative: RESTRICT (prevent delete if referenced)
+-- ALTER TABLE {{TABLE_NAME}}
+-- ADD CONSTRAINT {{FK_NAME}}
+--     FOREIGN KEY ({{COLUMN_NAME}})
+--     REFERENCES {{REF_TABLE}} ({{REF_COLUMN}})
+--     ON DELETE RESTRICT
+--     ON UPDATE RESTRICT;
+
+-- Alternative: SET NULL (nullify reference on delete)
+-- ALTER TABLE {{TABLE_NAME}}
+-- ADD CONSTRAINT {{FK_NAME}}
+--     FOREIGN KEY ({{COLUMN_NAME}})
+--     REFERENCES {{REF_TABLE}} ({{REF_COLUMN}})
+--     ON DELETE SET NULL
+--     ON UPDATE CASCADE;
+
+-- Alternative: SET DEFAULT (set to default value on delete)
+-- ALTER TABLE {{TABLE_NAME}}
+-- ADD CONSTRAINT {{FK_NAME}}
+--     FOREIGN KEY ({{COLUMN_NAME}})
+--     REFERENCES {{REF_TABLE}} ({{REF_COLUMN}})
+--     ON DELETE SET DEFAULT
+--     ON UPDATE CASCADE;
+
+-- Alternative: NO ACTION (similar to RESTRICT)
+-- ALTER TABLE {{TABLE_NAME}}
+-- ADD CONSTRAINT {{FK_NAME}}
+--     FOREIGN KEY ({{COLUMN_NAME}})
+--     REFERENCES {{REF_TABLE}} ({{REF_COLUMN}})
+--     ON DELETE NO ACTION
+--     ON UPDATE NO ACTION;
+
+-- Composite foreign key (multiple columns)
+-- ALTER TABLE {{TABLE_NAME}}
+-- ADD CONSTRAINT {{FK_NAME}}
+--     FOREIGN KEY (column1, column2)
+--     REFERENCES {{REF_TABLE}} (ref_column1, ref_column2)
+--     ON DELETE CASCADE
+--     ON UPDATE CASCADE;
+
+-- ============================================
+-- CREATE SUPPORTING INDEX
+-- ============================================
+
+-- Create index on foreign key column for better join performance
+CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_{{TABLE_NAME}}_{{COLUMN_NAME}}
+ON {{TABLE_NAME}} ({{COLUMN_NAME}});
+
+-- Composite index for multi-column foreign keys
+-- CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_{{TABLE_NAME}}_fk_columns
+-- ON {{TABLE_NAME}} (column1, column2);
+
+-- ============================================
+-- ADD CONSTRAINT COMMENT
+-- ============================================
+
+COMMENT ON CONSTRAINT {{FK_NAME}} ON {{TABLE_NAME}} IS '{{DESCRIPTION}}';
+
+-- ============================================
+-- POST-CONSTRAINT VALIDATION
+-- ============================================
+
+-- Verify constraint was created
+SELECT
+    tc.constraint_name,
+    tc.table_name,
+    kcu.column_name,
+    ccu.table_name AS foreign_table_name,
+    ccu.column_name AS foreign_column_name,
+    rc.update_rule,
+    rc.delete_rule
+FROM information_schema.table_constraints AS tc
+JOIN information_schema.key_column_usage AS kcu
+    ON tc.constraint_name = kcu.constraint_name
+    AND tc.table_schema = kcu.table_schema
+JOIN information_schema.constraint_column_usage AS ccu
+    ON ccu.constraint_name = tc.constraint_name
+    AND ccu.table_schema = tc.table_schema
+JOIN information_schema.referential_constraints AS rc
+    ON tc.constraint_name = rc.constraint_name
+WHERE tc.constraint_type = 'FOREIGN KEY'
+  AND tc.table_name = '{{TABLE_NAME}}'
+  AND tc.constraint_name = '{{FK_NAME}}';
+
+-- Check for any remaining constraint violations
+SELECT COUNT(*) AS remaining_violations
+FROM {{TABLE_NAME}} t
+WHERE {{COLUMN_NAME}} IS NOT NULL
+  AND NOT EXISTS (
+      SELECT 1
+      FROM {{REF_TABLE}} r
+      WHERE r.{{REF_COLUMN}} = t.{{COLUMN_NAME}}
+  );
+
+-- ============================================
+-- ROLLBACK (if needed)
+-- ============================================
+
+-- To drop the foreign key constraint:
+-- ALTER TABLE {{TABLE_NAME}}
+-- DROP CONSTRAINT IF EXISTS {{FK_NAME}};
+
+-- To drop the supporting index:
+-- DROP INDEX CONCURRENTLY IF EXISTS idx_{{TABLE_NAME}}_{{COLUMN_NAME}};
+
+-- ============================================
+-- COMMON FOREIGN KEY PATTERNS
+-- ============================================
+
+-- Pattern 1: Self-referential foreign key (tree structure)
+-- ALTER TABLE categories
+-- ADD CONSTRAINT fk_categories_parent_id
+--     FOREIGN KEY (parent_id)
+--     REFERENCES categories (id)
+--     ON DELETE CASCADE;
+
+-- Pattern 2: Soft delete safe foreign key
+-- ALTER TABLE {{TABLE_NAME}}
+-- ADD CONSTRAINT {{FK_NAME}}
+--     FOREIGN KEY ({{COLUMN_NAME}})
+--     REFERENCES {{REF_TABLE}} ({{REF_COLUMN}})
+--     ON DELETE RESTRICT;  -- Prevent hard deletes, use soft delete instead
+
+-- Pattern 3: Audit table foreign key (never delete audits)
+-- ALTER TABLE audit_log
+-- ADD CONSTRAINT fk_audit_log_user_id
+--     FOREIGN KEY (user_id)
+--     REFERENCES users (id)
+--     ON DELETE SET NULL;  -- Keep audit even if user is deleted
+
+-- ============================================
+-- ON DELETE/UPDATE RULES GUIDE
+-- ============================================
+
+-- CASCADE:       Automatically delete/update child records
+-- RESTRICT:      Prevent delete/update if child records exist (error immediately)
+-- NO ACTION:     Prevent delete/update if child records exist (check at end of transaction)
+-- SET NULL:      Set foreign key to NULL when parent is deleted/updated
+-- SET DEFAULT:   Set foreign key to default value when parent is deleted/updated
+
+-- ============================================
+-- NOTES
+-- ============================================
+
+-- Performance considerations:
+--   - Always create an index on foreign key columns
+--   - Use CONCURRENTLY for index creation on large tables
+--   - CASCADE can cause unexpected deletions, use with caution
+--   - RESTRICT is safer but requires manual cleanup
+
+-- Best practices:
+--   - Document the relationship and chosen delete rule
+--   - Test cascade behavior in staging environment
+--   - Monitor foreign key constraint violations in logs
+--   - Consider soft deletes instead of hard deletes for critical data

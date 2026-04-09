@@ -1,0 +1,139 @@
+-- Template: Seed Data
+-- Description: Insert test and development data for local and staging environments
+-- Variables: {{TABLE_NAME}}, {{DATA_ROWS}}, {{ENVIRONMENT}}
+
+-- Seed Data for: {{TABLE_NAME}}
+-- Environment: {{ENVIRONMENT}}
+-- Date: {{DATE}}
+-- Author: {{AUTHOR}}
+
+BEGIN;
+
+-- ============================================
+-- CONFIGURATION
+-- ============================================
+
+-- Ensure we're not in production
+DO $$
+BEGIN
+    IF current_database() = 'production' THEN
+        RAISE EXCEPTION 'Cannot seed data in production database';
+    END IF;
+END $$;
+
+-- ============================================
+-- CLEANUP (Optional - use with caution)
+-- ============================================
+
+-- Truncate existing seed data if reseeding
+-- TRUNCATE TABLE {{TABLE_NAME}} RESTART IDENTITY CASCADE;
+
+-- Delete specific seed data
+-- DELETE FROM {{TABLE_NAME}} WHERE id IN (1, 2, 3);
+
+-- ============================================
+-- SEED DATA INSERTION
+-- ============================================
+
+-- Insert with explicit IDs (useful for testing with known values)
+INSERT INTO {{TABLE_NAME}} (id, {{DATA_ROWS}}, created_at, updated_at)
+VALUES
+    -- Example rows with explicit IDs
+    (1, 'value1', 'value2', NOW() - INTERVAL '30 days', NOW() - INTERVAL '5 days'),
+    (2, 'value3', 'value4', NOW() - INTERVAL '20 days', NOW() - INTERVAL '3 days'),
+    (3, 'value5', 'value6', NOW() - INTERVAL '10 days', NOW() - INTERVAL '1 day')
+ON CONFLICT (id) DO NOTHING;
+
+-- Insert without explicit IDs (auto-generated)
+-- INSERT INTO {{TABLE_NAME}} ({{DATA_ROWS}}, created_at, updated_at)
+-- VALUES
+--     ('value1', 'value2', NOW(), NOW()),
+--     ('value3', 'value4', NOW(), NOW())
+-- ON CONFLICT DO NOTHING;
+
+-- ============================================
+-- RELATED DATA (Foreign Key Dependencies)
+-- ============================================
+
+-- Insert related data for foreign key relationships
+-- INSERT INTO related_table (id, {{TABLE_NAME}}_id, column_name, created_at)
+-- VALUES
+--     (1, 1, 'related_value1', NOW()),
+--     (2, 1, 'related_value2', NOW()),
+--     (3, 2, 'related_value3', NOW())
+-- ON CONFLICT (id) DO NOTHING;
+
+-- ============================================
+-- COMPLEX SEED DATA PATTERNS
+-- ============================================
+
+-- Generate multiple rows with a loop
+DO $$
+DECLARE
+    i INTEGER;
+BEGIN
+    FOR i IN 1..10 LOOP
+        INSERT INTO {{TABLE_NAME}} (name, code, order_number, created_at)
+        VALUES (
+            'Generated Item ' || i,
+            'CODE_' || LPAD(i::TEXT, 4, '0'),
+            i,
+            NOW() - (i || ' days')::INTERVAL
+        )
+        ON CONFLICT DO NOTHING;
+    END LOOP;
+END $$;
+
+-- Insert with random data
+-- INSERT INTO {{TABLE_NAME}} (name, amount, status, created_at)
+-- SELECT
+--     'Random Item ' || generate_series,
+--     (random() * 1000)::INTEGER,
+--     CASE (random() * 3)::INTEGER
+--         WHEN 0 THEN 'active'
+--         WHEN 1 THEN 'pending'
+--         ELSE 'completed'
+--     END,
+--     NOW() - (random() * 365 || ' days')::INTERVAL
+-- FROM generate_series(1, 50);
+
+-- Insert from existing data (copy pattern)
+-- INSERT INTO {{TABLE_NAME}} (column1, column2, created_at)
+-- SELECT column1, column2 || '_copy', NOW()
+-- FROM source_table
+-- WHERE condition = true
+-- ON CONFLICT DO NOTHING;
+
+-- ============================================
+-- RESET SEQUENCES
+-- ============================================
+
+-- Reset auto-increment sequences to avoid ID conflicts
+SELECT setval(
+    pg_get_serial_sequence('{{TABLE_NAME}}', 'id'),
+    COALESCE((SELECT MAX(id) FROM {{TABLE_NAME}}), 1),
+    true
+);
+
+-- ============================================
+-- VERIFICATION
+-- ============================================
+
+-- Verify seed data was inserted
+DO $$
+DECLARE
+    row_count INTEGER;
+BEGIN
+    SELECT COUNT(*) INTO row_count FROM {{TABLE_NAME}};
+    RAISE NOTICE 'Seeded % rows into {{TABLE_NAME}}', row_count;
+
+    -- Add assertions for expected data
+    IF row_count < 3 THEN
+        RAISE WARNING 'Expected at least 3 rows, found %', row_count;
+    END IF;
+END $$;
+
+COMMIT;
+
+-- Display sample data
+SELECT * FROM {{TABLE_NAME}} ORDER BY id LIMIT 10;

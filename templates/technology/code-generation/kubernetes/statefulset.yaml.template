@@ -1,0 +1,72 @@
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{APP_NAME}}
+  labels:
+    app: {{APP_NAME}}
+spec:
+  serviceName: {{SERVICE_NAME}}
+  replicas: {{REPLICAS}}
+  selector:
+    matchLabels:
+      app: {{APP_NAME}}
+  template:
+    metadata:
+      labels:
+        app: {{APP_NAME}}
+    spec:
+      containers:
+      - name: {{APP_NAME}}
+        image: {{IMAGE}}
+        imagePullPolicy: {{IMAGE_PULL_POLICY}}
+        ports:
+        - name: {{PORT_NAME}}
+          containerPort: {{CONTAINER_PORT}}
+          protocol: TCP
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        {{ADDITIONAL_ENV_VARS}}
+        resources:
+          requests:
+            cpu: {{CPU_REQUEST}}
+            memory: {{MEMORY_REQUEST}}
+          limits:
+            cpu: {{CPU_LIMIT}}
+            memory: {{MEMORY_LIMIT}}
+        volumeMounts:
+        - name: {{VOLUME_NAME}}
+          mountPath: {{MOUNT_PATH}}
+        {{ADDITIONAL_VOLUME_MOUNTS}}
+        livenessProbe:
+          {{LIVENESS_PROBE}}
+        readinessProbe:
+          {{READINESS_PROBE}}
+      {{IMAGE_PULL_SECRETS}}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: {{RUN_AS_USER}}
+        fsGroup: {{FS_GROUP}}
+  volumeClaimTemplates:
+  - metadata:
+      name: {{VOLUME_NAME}}
+      labels:
+        app: {{APP_NAME}}
+    spec:
+      accessModes:
+      - {{ACCESS_MODE}}
+      storageClassName: {{STORAGE_CLASS}}
+      resources:
+        requests:
+          storage: {{STORAGE_SIZE}}
+  podManagementPolicy: {{POD_MANAGEMENT_POLICY}}
+  updateStrategy:
+    type: {{UPDATE_STRATEGY_TYPE}}
+    {{ROLLING_UPDATE_CONFIG}}

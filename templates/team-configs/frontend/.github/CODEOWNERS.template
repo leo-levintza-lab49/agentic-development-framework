@@ -1,0 +1,32 @@
+# Frontend Team Code Ownership
+# This file defines code ownership for the frontend repository.
+# Teams are automatically requested for review when a PR modifies their owned files.
+
+# Default ownership - all files require frontend team review (1 reviewer)
+* @polybase-poc/frontend
+
+# Component library requires both frontend and design team review (2 reviewers)
+/src/components/** @polybase-poc/frontend @polybase-poc/design
+/src/design-system/** @polybase-poc/frontend @polybase-poc/design
+
+# Shared UI utilities and hooks require design team awareness
+/src/hooks/ui/** @polybase-poc/frontend @polybase-poc/design
+/src/utils/styling/** @polybase-poc/frontend @polybase-poc/design
+
+# Theme and styling configuration
+/src/theme/** @polybase-poc/frontend @polybase-poc/design
+/src/styles/** @polybase-poc/frontend @polybase-poc/design
+
+# Build and configuration files require tech lead review
+/vite.config.ts @polybase-poc/frontend-tech-leads
+/tsconfig.json @polybase-poc/frontend-tech-leads
+/package.json @polybase-poc/frontend-tech-leads
+/.github/workflows/** @polybase-poc/frontend-tech-leads
+
+# Accessibility and internationalization
+/src/a11y/** @polybase-poc/frontend @polybase-poc/accessibility
+/src/i18n/** @polybase-poc/frontend @polybase-poc/i18n
+
+# API integration and data fetching
+/src/api/** @polybase-poc/frontend @polybase-poc/backend
+/src/services/** @polybase-poc/frontend @polybase-poc/backend

@@ -1,0 +1,45 @@
+# Helm Chart.yaml
+apiVersion: v2
+name: {{CHART_NAME}}
+description: {{CHART_DESCRIPTION}}
+type: application
+version: {{VERSION}}
+appVersion: "{{APP_VERSION}}"
+
+# Optional fields
+keywords:
+  {{KEYWORDS}}
+  # - kubernetes
+  # - microservice
+  # - api
+
+home: {{HOME_URL}}
+sources:
+  {{SOURCE_URLS}}
+  # - https://github.com/org/repo
+
+maintainers:
+  {{MAINTAINERS}}
+  # - name: John Doe
+  #   email: john.doe@example.com
+  #   url: https://github.com/johndoe
+
+icon: {{ICON_URL}}
+
+# Dependencies (optional)
+dependencies:
+  {{DEPENDENCIES}}
+  # - name: postgresql
+  #   version: "12.1.0"
+  #   repository: "https://charts.bitnami.com/bitnami"
+  #   condition: postgresql.enabled
+  # - name: redis
+  #   version: "17.3.0"
+  #   repository: "https://charts.bitnami.com/bitnami"
+  #   condition: redis.enabled
+
+# Annotations (optional)
+annotations:
+  {{ANNOTATIONS}}
+  # category: Application
+  # licenses: Apache-2.0

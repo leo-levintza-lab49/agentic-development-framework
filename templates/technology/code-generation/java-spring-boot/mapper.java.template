@@ -1,0 +1,133 @@
+package {{PACKAGE_NAME}}.mapper;
+
+import {{PACKAGE_NAME}}.domain.entity.{{ENTITY_NAME}};
+import {{PACKAGE_NAME}}.dto.{{ENTITY_NAME}}Request;
+import {{PACKAGE_NAME}}.dto.{{ENTITY_NAME}}Response;
+import org.mapstruct.*;
+import org.springframework.stereotype.Component;
+
+import java.util.List;
+
+/**
+ * MapStruct mapper for {{ENTITY_NAME}} entity and DTOs.
+ * Handles conversion between entity and DTO objects.
+ *
+ * @author Generated
+ * @version 1.0
+ */
+@Mapper(componentModel = "spring",
+        unmappedTargetPolicy = ReportingPolicy.IGNORE,
+        nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE,
+        nullValueCheckStrategy = NullValueCheckStrategy.ALWAYS)
+@Component
+public interface {{ENTITY_NAME}}Mapper {
+
+    /**
+     * Convert request DTO to entity.
+     *
+     * @param request the request DTO
+     * @return the entity
+     */
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "createdBy", ignore = true)
+    @Mapping(target = "lastModifiedBy", ignore = true)
+    @Mapping(target = "version", ignore = true)
+    @Mapping(target = "deleted", ignore = true)
+    {{ENTITY_NAME}} toEntity({{ENTITY_NAME}}Request request);
+
+    /**
+     * Convert entity to response DTO.
+     *
+     * @param entity the entity
+     * @return the response DTO
+     */
+    {{ENTITY_NAME}}Response toResponse({{ENTITY_NAME}} entity);
+
+    /**
+     * Convert list of entities to list of response DTOs.
+     *
+     * @param entities list of entities
+     * @return list of response DTOs
+     */
+    List<{{ENTITY_NAME}}Response> toResponseList(List<{{ENTITY_NAME}}> entities);
+
+    /**
+     * Update entity from request DTO (full update).
+     * Updates all fields from request to entity.
+     *
+     * @param request the request DTO
+     * @param entity the target entity to update
+     */
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "createdBy", ignore = true)
+    @Mapping(target = "lastModifiedBy", ignore = true)
+    @Mapping(target = "version", ignore = true)
+    @Mapping(target = "deleted", ignore = true)
+    void updateEntityFromRequest({{ENTITY_NAME}}Request request, @MappingTarget {{ENTITY_NAME}} entity);
+
+    /**
+     * Partially update entity from request DTO (patch update).
+     * Only updates non-null fields from request to entity.
+     *
+     * @param request the request DTO with partial data
+     * @param entity the target entity to update
+     */
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "createdBy", ignore = true)
+    @Mapping(target = "lastModifiedBy", ignore = true)
+    @Mapping(target = "version", ignore = true)
+    @Mapping(target = "deleted", ignore = true)
+    @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+    void partialUpdateEntityFromRequest({{ENTITY_NAME}}Request request, @MappingTarget {{ENTITY_NAME}} entity);
+
+    /*
+     * Custom mapping methods for complex scenarios:
+     *
+     * // Custom mapping for nested relationships
+     * @Mapping(target = "parent", source = "parentId", qualifiedByName = "mapParent")
+     * {{ENTITY_NAME}} toEntity({{ENTITY_NAME}}Request request);
+     *
+     * @Named("mapParent")
+     * default ParentEntity mapParent(Long parentId) {
+     *     if (parentId == null) {
+     *         return null;
+     *     }
+     *     ParentEntity parent = new ParentEntity();
+     *     parent.setId(parentId);
+     *     return parent;
+     * }
+     *
+     * // Custom mapping for enum conversion
+     * @Mapping(target = "status", source = "statusCode", qualifiedByName = "mapStatus")
+     * {{ENTITY_NAME}} toEntity({{ENTITY_NAME}}Request request);
+     *
+     * @Named("mapStatus")
+     * default Status mapStatus(String statusCode) {
+     *     return Status.fromCode(statusCode);
+     * }
+     *
+     * // Custom mapping for date formatting
+     * @Mapping(target = "processedAt", source = "processedDate", qualifiedByName = "mapDate")
+     * {{ENTITY_NAME}} toEntity({{ENTITY_NAME}}Request request);
+     *
+     * @Named("mapDate")
+     * default LocalDateTime mapDate(String dateString) {
+     *     return LocalDateTime.parse(dateString, DateTimeFormatter.ISO_DATE_TIME);
+     * }
+     *
+     * // After mapping hook for additional processing
+     * @AfterMapping
+     * default void afterMapping({{ENTITY_NAME}}Request request, @MappingTarget {{ENTITY_NAME}} entity) {
+     *     // Custom logic after mapping
+     *     if (entity.getAmount() != null) {
+     *         entity.setProcessed(true);
+     *     }
+     * }
+     */
+}

@@ -1,0 +1,196 @@
+# Helm values.yaml - Default configuration values
+# Override these values using --set or --values flags
+
+# Application name
+nameOverride: ""
+fullnameOverride: ""
+
+# Replica configuration
+replicaCount: {{REPLICAS}}
+
+# Container image configuration
+image:
+  repository: {{IMAGE_REPOSITORY}}
+  pullPolicy: IfNotPresent
+  tag: "{{IMAGE_TAG}}"
+
+imagePullSecrets: []
+# - name: registry-secret
+
+# Service Account
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+# Pod annotations
+podAnnotations: {}
+  # prometheus.io/scrape: "true"
+  # prometheus.io/port: "8080"
+  # prometheus.io/path: "/metrics"
+
+# Pod security context
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+# Container security context
+securityContext:
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+  annotations: {}
+
+# Ingress configuration
+ingress:
+  enabled: false
+  className: "alb"
+  annotations: {}
+    # kubernetes.io/ingress.class: alb
+    # alb.ingress.kubernetes.io/scheme: internet-facing
+    # alb.ingress.kubernetes.io/target-type: ip
+    # cert-manager.io/cluster-issuer: letsencrypt-prod
+  hosts:
+    - host: chart-example.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
+
+# Resource limits and requests
+resources:
+  limits:
+    cpu: {{CPU_LIMIT}}
+    memory: {{MEMORY_LIMIT}}
+  requests:
+    cpu: {{CPU_REQUEST}}
+    memory: {{MEMORY_REQUEST}}
+
+# Autoscaling configuration
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity rules
+affinity: {}
+
+# Liveness probe
+livenessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+# Readiness probe
+readinessProbe:
+  httpGet:
+    path: /ready
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+# Environment variables
+env: []
+  # - name: APP_ENV
+  #   value: production
+  # - name: LOG_LEVEL
+  #   value: info
+
+# Environment variables from ConfigMap
+envFrom: []
+  # - configMapRef:
+  #     name: app-config
+  # - secretRef:
+  #     name: app-secrets
+
+# Volumes
+volumes: []
+  # - name: config
+  #   configMap:
+  #     name: app-config
+  # - name: secrets
+  #   secret:
+  #     secretName: app-secrets
+
+# Volume mounts
+volumeMounts: []
+  # - name: config
+  #   mountPath: /etc/config
+  #   readOnly: true
+  # - name: secrets
+  #   mountPath: /etc/secrets
+  #   readOnly: true
+
+# ConfigMap data
+configMap:
+  enabled: false
+  data: {}
+    # config.yaml: |
+    #   server:
+    #     port: 8080
+
+# Secret data
+secret:
+  enabled: false
+  data: {}
+    # api-key: "base64encodedvalue"
+
+# Pod Disruption Budget
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+  # maxUnavailable: 1
+
+# Network Policy
+networkPolicy:
+  enabled: false
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress: []
+  egress: []
+
+# Persistent Volume Claim (for StatefulSets)
+persistence:
+  enabled: false
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  size: 8Gi
+  annotations: {}
+
+# Additional labels
+labels: {}
+
+# Metrics and monitoring
+metrics:
+  enabled: false
+  serviceMonitor:
+    enabled: false
+    interval: 30s
+    scrapeTimeout: 10s

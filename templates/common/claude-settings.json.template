@@ -1,0 +1,40 @@
+{
+  "version": "1.0",
+  "projectName": "{{REPO_NAME}}",
+  "organization": "{{ORG_NAME}}",
+  "team": "{{TEAM_NAME}}",
+  "rules": [
+    ".claude/rules/security.md",
+    ".claude/rules/code-quality.md",
+    ".claude/rules/git-workflow.md"
+  ],
+  "instructions": [
+    ".claude/instructions/contribution.md"
+  ],
+  "hooks": {
+    "pre-commit": {
+      "enabled": false,
+      "script": ".claude/scripts/pre-commit.sh"
+    },
+    "post-commit": {
+      "enabled": false,
+      "script": ".claude/scripts/post-commit.sh"
+    }
+  },
+  "statusline": {
+    "enabled": true,
+    "format": "[{{REPO_NAME}}] {branch} {status}",
+    "colors": {
+      "clean": "green",
+      "dirty": "yellow",
+      "error": "red"
+    }
+  },
+  "integrations": {
+    "github": {
+      "enabled": true,
+      "org": "{{ORG_NAME}}",
+      "repo": "{{REPO_NAME}}"
+    }
+  }
+}

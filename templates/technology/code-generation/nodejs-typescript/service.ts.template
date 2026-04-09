@@ -1,0 +1,350 @@
+import axios, { AxiosInstance, AxiosError, AxiosRequestConfig } from 'axios';
+import axiosRetry from 'axios-retry';
+import { {{MODEL_NAME}} } from '../models/{{MODEL_NAME}}.model';
+import { ApiError } from '../errors/ApiError';
+import { logger } from '../utils/logger';
+import { cache } from '../utils/cache';
+
+interface PaginationOptions {
+  page: number;
+  limit: number;
+  sort?: string;
+  order?: 'asc' | 'desc';
+}
+
+interface PaginatedResult<T> {
+  items: T[];
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+}
+
+export class {{SERVICE_NAME}}Service {
+  private client: AxiosInstance;
+  private cacheEnabled: boolean = true;
+  private cacheTTL: number = 300; // 5 minutes in seconds
+
+  constructor() {
+    this.client = axios.create({
+      baseURL: process.env.{{BACKEND_URL}} || 'http://localhost:3000',
+      timeout: 10000,
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      }
+    });
+
+    // Configure retry logic
+    axiosRetry(this.client, {
+      retries: 3,
+      retryDelay: axiosRetry.exponentialDelay,
+      retryCondition: (error: AxiosError) => {
+        return axiosRetry.isNetworkOrIdempotentRequestError(error) ||
+               (error.response?.status ? error.response.status >= 500 : false);
+      },
+      onRetry: (retryCount, error, requestConfig) => {
+        logger.warn('Retrying request', {
+          retryCount,
+          url: requestConfig.url,
+          method: requestConfig.method,
+          error: error.message
+        });
+      }
+    });
+
+    // Request interceptor for authentication and logging
+    this.client.interceptors.request.use(
+      (config) => {
+        const token = process.env.API_TOKEN;
+        if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+        }
+
+        logger.debug('Outgoing request', {
+          method: config.method,
+          url: config.url,
+          params: config.params
+        });
+
+        return config;
+      },
+      (error) => {
+        logger.error('Request interceptor error', { error: error.message });
+        return Promise.reject(error);
+      }
+    );
+
+    // Response interceptor for error handling and logging
+    this.client.interceptors.response.use(
+      (response) => {
+        logger.debug('Incoming response', {
+          status: response.status,
+          url: response.config.url
+        });
+        return response;
+      },
+      (error: AxiosError) => {
+        this.handleAxiosError(error);
+        return Promise.reject(error);
+      }
+    );
+  }
+
+  /**
+   * Get all items with pagination
+   */
+  async getAll(options: PaginationOptions): Promise<PaginatedResult<{{MODEL_NAME}}>> {
+    try {
+      const cacheKey = `{{SERVICE_NAME}}:all:${JSON.stringify(options)}`;
+
+      // Check cache first
+      if (this.cacheEnabled) {
+        const cached = await cache.get<PaginatedResult<{{MODEL_NAME}}>>(cacheKey);
+        if (cached) {
+          logger.debug('Cache hit', { cacheKey });
+          return cached;
+        }
+      }
+
+      const { page, limit, sort, order } = options;
+      const response = await this.client.get<PaginatedResult<{{MODEL_NAME}}>>('/{{SERVICE_NAME}}', {
+        params: { page, limit, sort, order }
+      });
+
+      const result = response.data;
+
+      // Cache the result
+      if (this.cacheEnabled) {
+        await cache.set(cacheKey, result, this.cacheTTL);
+      }
+
+      return result;
+    } catch (error) {
+      logger.error('Error fetching all {{SERVICE_NAME}}', { error, options });
+      throw this.transformError(error);
+    }
+  }
+
+  /**
+   * Get a single item by ID
+   */
+  async getById(id: string): Promise<{{MODEL_NAME}} | null> {
+    try {
+      const cacheKey = `{{SERVICE_NAME}}:${id}`;
+
+      // Check cache first
+      if (this.cacheEnabled) {
+        const cached = await cache.get<{{MODEL_NAME}}>(cacheKey);
+        if (cached) {
+          logger.debug('Cache hit', { cacheKey });
+          return cached;
+        }
+      }
+
+      const response = await this.client.get<{{MODEL_NAME}}>(`/{{SERVICE_NAME}}/${id}`);
+      const result = response.data;
+
+      // Cache the result
+      if (this.cacheEnabled) {
+        await cache.set(cacheKey, result, this.cacheTTL);
+      }
+
+      return result;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
+        return null;
+      }
+      logger.error('Error fetching {{SERVICE_NAME}} by ID', { error, id });
+      throw this.transformError(error);
+    }
+  }
+
+  /**
+   * Create a new item
+   */
+  async create(data: Partial<{{MODEL_NAME}}>): Promise<{{MODEL_NAME}}> {
+    try {
+      const response = await this.client.post<{{MODEL_NAME}}>('/{{SERVICE_NAME}}', data);
+
+      // Invalidate cache
+      if (this.cacheEnabled) {
+        await cache.invalidatePattern('{{SERVICE_NAME}}:all:*');
+      }
+
+      return response.data;
+    } catch (error) {
+      logger.error('Error creating {{SERVICE_NAME}}', { error, data });
+      throw this.transformError(error);
+    }
+  }
+
+  /**
+   * Update an existing item
+   */
+  async update(id: string, data: Partial<{{MODEL_NAME}}>): Promise<{{MODEL_NAME}} | null> {
+    try {
+      const response = await this.client.put<{{MODEL_NAME}}>(`/{{SERVICE_NAME}}/${id}`, data);
+
+      // Invalidate cache
+      if (this.cacheEnabled) {
+        await cache.del(`{{SERVICE_NAME}}:${id}`);
+        await cache.invalidatePattern('{{SERVICE_NAME}}:all:*');
+      }
+
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
+        return null;
+      }
+      logger.error('Error updating {{SERVICE_NAME}}', { error, id, data });
+      throw this.transformError(error);
+    }
+  }
+
+  /**
+   * Partially update an existing item
+   */
+  async patch(id: string, data: Partial<{{MODEL_NAME}}>): Promise<{{MODEL_NAME}} | null> {
+    try {
+      const response = await this.client.patch<{{MODEL_NAME}}>(`/{{SERVICE_NAME}}/${id}`, data);
+
+      // Invalidate cache
+      if (this.cacheEnabled) {
+        await cache.del(`{{SERVICE_NAME}}:${id}`);
+        await cache.invalidatePattern('{{SERVICE_NAME}}:all:*');
+      }
+
+      return response.data;
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
+        return null;
+      }
+      logger.error('Error patching {{SERVICE_NAME}}', { error, id, data });
+      throw this.transformError(error);
+    }
+  }
+
+  /**
+   * Delete an item
+   */
+  async delete(id: string): Promise<void> {
+    try {
+      await this.client.delete(`/{{SERVICE_NAME}}/${id}`);
+
+      // Invalidate cache
+      if (this.cacheEnabled) {
+        await cache.del(`{{SERVICE_NAME}}:${id}`);
+        await cache.invalidatePattern('{{SERVICE_NAME}}:all:*');
+      }
+    } catch (error) {
+      logger.error('Error deleting {{SERVICE_NAME}}', { error, id });
+      throw this.transformError(error);
+    }
+  }
+
+  /**
+   * Aggregate data from multiple backend services (BFF pattern)
+   */
+  async aggregateData(id: string): Promise<any> {
+    try {
+      // Fetch data from multiple sources in parallel
+      const [item, relatedData, metadata] = await Promise.allSettled([
+        this.getById(id),
+        this.fetchRelatedData(id),
+        this.fetchMetadata(id)
+      ]);
+
+      // Combine results
+      const result: any = {};
+
+      if (item.status === 'fulfilled') {
+        result.item = item.value;
+      }
+
+      if (relatedData.status === 'fulfilled') {
+        result.relatedData = relatedData.value;
+      }
+
+      if (metadata.status === 'fulfilled') {
+        result.metadata = metadata.value;
+      }
+
+      return result;
+    } catch (error) {
+      logger.error('Error aggregating data', { error, id });
+      throw this.transformError(error);
+    }
+  }
+
+  /**
+   * Fetch related data from another service
+   */
+  private async fetchRelatedData(id: string): Promise<any> {
+    // Implementation for fetching related data
+    // This could call another microservice
+    return {};
+  }
+
+  /**
+   * Fetch metadata from another service
+   */
+  private async fetchMetadata(id: string): Promise<any> {
+    // Implementation for fetching metadata
+    return {};
+  }
+
+  /**
+   * Handle Axios errors and log appropriately
+   */
+  private handleAxiosError(error: AxiosError): void {
+    if (error.response) {
+      logger.error('Response error', {
+        status: error.response.status,
+        data: error.response.data,
+        url: error.config?.url
+      });
+    } else if (error.request) {
+      logger.error('Request error - no response received', {
+        url: error.config?.url
+      });
+    } else {
+      logger.error('Error setting up request', {
+        message: error.message
+      });
+    }
+  }
+
+  /**
+   * Transform Axios errors to ApiError
+   */
+  private transformError(error: any): ApiError {
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status || 500;
+      const message = error.response?.data?.message || error.message;
+      return new ApiError(status, message);
+    }
+    return new ApiError(500, 'Internal server error');
+  }
+
+  /**
+   * Disable caching for this service instance
+   */
+  disableCache(): void {
+    this.cacheEnabled = false;
+  }
+
+  /**
+   * Enable caching for this service instance
+   */
+  enableCache(): void {
+    this.cacheEnabled = true;
+  }
+
+  /**
+   * Set cache TTL
+   */
+  setCacheTTL(ttl: number): void {
+    this.cacheTTL = ttl;
+  }
+}

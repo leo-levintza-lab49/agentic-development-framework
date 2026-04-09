@@ -1,0 +1,364 @@
+import axios from 'axios';
+import MockAdapter from 'axios-mock-adapter';
+import { {{SERVICE_NAME}}Service } from '../services/{{SERVICE_NAME}}.service';
+import { {{MODEL_NAME}}, {{MODEL_NAME}}Status } from '../models/{{MODEL_NAME}}.model';
+import { ApiError } from '../errors/ApiError';
+
+// Mock axios
+const mockAxios = new MockAdapter(axios);
+
+// Mock logger to avoid console output during tests
+jest.mock('../utils/logger', () => ({
+  logger: {
+    info: jest.fn(),
+    debug: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn()
+  }
+}));
+
+// Mock cache
+jest.mock('../utils/cache', () => ({
+  cache: {
+    get: jest.fn(),
+    set: jest.fn(),
+    del: jest.fn(),
+    invalidatePattern: jest.fn()
+  }
+}));
+
+describe('{{TEST_NAME}}', () => {
+  let service: {{SERVICE_NAME}}Service;
+
+  const mockItem: {{MODEL_NAME}} = {
+    id: '123e4567-e89b-12d3-a456-426614174000',
+    name: 'Test Item',
+    description: 'Test Description',
+    status: {{MODEL_NAME}}Status.ACTIVE,
+    createdAt: new Date('2024-01-01'),
+    updatedAt: new Date('2024-01-01')
+  };
+
+  beforeEach(() => {
+    service = new {{SERVICE_NAME}}Service();
+    service.disableCache(); // Disable caching for tests
+    mockAxios.reset();
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('getAll', () => {
+    it('should fetch all items with pagination', async () => {
+      const mockResponse = {
+        items: [mockItem],
+        page: 1,
+        limit: 10,
+        total: 1,
+        totalPages: 1
+      };
+
+      mockAxios.onGet('/{{SERVICE_NAME}}').reply(200, mockResponse);
+
+      const result = await service.getAll({
+        page: 1,
+        limit: 10
+      });
+
+      expect(result).toEqual(mockResponse);
+      expect(result.items).toHaveLength(1);
+      expect(result.items[0]).toEqual(mockItem);
+    });
+
+    it('should handle pagination parameters', async () => {
+      const mockResponse = {
+        items: [mockItem],
+        page: 2,
+        limit: 5,
+        total: 10,
+        totalPages: 2
+      };
+
+      mockAxios.onGet('/{{SERVICE_NAME}}', {
+        params: { page: 2, limit: 5, sort: 'name', order: 'desc' }
+      }).reply(200, mockResponse);
+
+      const result = await service.getAll({
+        page: 2,
+        limit: 5,
+        sort: 'name',
+        order: 'desc'
+      });
+
+      expect(result.page).toBe(2);
+      expect(result.limit).toBe(5);
+    });
+
+    it('should handle empty results', async () => {
+      const mockResponse = {
+        items: [],
+        page: 1,
+        limit: 10,
+        total: 0,
+        totalPages: 0
+      };
+
+      mockAxios.onGet('/{{SERVICE_NAME}}').reply(200, mockResponse);
+
+      const result = await service.getAll({
+        page: 1,
+        limit: 10
+      });
+
+      expect(result.items).toHaveLength(0);
+      expect(result.total).toBe(0);
+    });
+
+    it('should handle network errors', async () => {
+      mockAxios.onGet('/{{SERVICE_NAME}}').networkError();
+
+      await expect(
+        service.getAll({ page: 1, limit: 10 })
+      ).rejects.toThrow(ApiError);
+    });
+
+    it('should handle server errors', async () => {
+      mockAxios.onGet('/{{SERVICE_NAME}}').reply(500, {
+        message: 'Internal server error'
+      });
+
+      await expect(
+        service.getAll({ page: 1, limit: 10 })
+      ).rejects.toThrow(ApiError);
+    });
+  });
+
+  describe('getById', () => {
+    it('should fetch a single item by ID', async () => {
+      mockAxios.onGet(`/{{SERVICE_NAME}}/${mockItem.id}`).reply(200, mockItem);
+
+      const result = await service.getById(mockItem.id);
+
+      expect(result).toEqual(mockItem);
+      expect(result?.id).toBe(mockItem.id);
+    });
+
+    it('should return null for non-existent item', async () => {
+      mockAxios.onGet('/{{SERVICE_NAME}}/non-existent-id').reply(404);
+
+      const result = await service.getById('non-existent-id');
+
+      expect(result).toBeNull();
+    });
+
+    it('should handle server errors', async () => {
+      mockAxios.onGet(`/{{SERVICE_NAME}}/${mockItem.id}`).reply(500);
+
+      await expect(
+        service.getById(mockItem.id)
+      ).rejects.toThrow(ApiError);
+    });
+  });
+
+  describe('create', () => {
+    const newItemData = {
+      name: 'New Item',
+      description: 'New Description',
+      status: {{MODEL_NAME}}Status.PENDING
+    };
+
+    it('should create a new item', async () => {
+      const createdItem = {
+        ...newItemData,
+        id: '123e4567-e89b-12d3-a456-426614174001',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      mockAxios.onPost('/{{SERVICE_NAME}}', newItemData).reply(201, createdItem);
+
+      const result = await service.create(newItemData);
+
+      expect(result).toEqual(createdItem);
+      expect(result.name).toBe(newItemData.name);
+    });
+
+    it('should handle validation errors', async () => {
+      mockAxios.onPost('/{{SERVICE_NAME}}').reply(400, {
+        message: 'Validation error',
+        errors: ['Name is required']
+      });
+
+      await expect(
+        service.create({})
+      ).rejects.toThrow(ApiError);
+    });
+
+    it('should handle duplicate errors', async () => {
+      mockAxios.onPost('/{{SERVICE_NAME}}').reply(409, {
+        message: 'Item already exists'
+      });
+
+      await expect(
+        service.create(newItemData)
+      ).rejects.toThrow(ApiError);
+    });
+  });
+
+  describe('update', () => {
+    const updateData = {
+      name: 'Updated Item',
+      description: 'Updated Description'
+    };
+
+    it('should update an existing item', async () => {
+      const updatedItem = {
+        ...mockItem,
+        ...updateData,
+        updatedAt: new Date()
+      };
+
+      mockAxios.onPut(`/{{SERVICE_NAME}}/${mockItem.id}`, updateData).reply(200, updatedItem);
+
+      const result = await service.update(mockItem.id, updateData);
+
+      expect(result).toEqual(updatedItem);
+      expect(result?.name).toBe(updateData.name);
+    });
+
+    it('should return null for non-existent item', async () => {
+      mockAxios.onPut('/{{SERVICE_NAME}}/non-existent-id').reply(404);
+
+      const result = await service.update('non-existent-id', updateData);
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('patch', () => {
+    const patchData = {
+      status: {{MODEL_NAME}}Status.INACTIVE
+    };
+
+    it('should partially update an item', async () => {
+      const patchedItem = {
+        ...mockItem,
+        ...patchData,
+        updatedAt: new Date()
+      };
+
+      mockAxios.onPatch(`/{{SERVICE_NAME}}/${mockItem.id}`, patchData).reply(200, patchedItem);
+
+      const result = await service.patch(mockItem.id, patchData);
+
+      expect(result).toEqual(patchedItem);
+      expect(result?.status).toBe(patchData.status);
+    });
+  });
+
+  describe('delete', () => {
+    it('should delete an item', async () => {
+      mockAxios.onDelete(`/{{SERVICE_NAME}}/${mockItem.id}`).reply(204);
+
+      await expect(
+        service.delete(mockItem.id)
+      ).resolves.not.toThrow();
+    });
+
+    it('should handle deletion of non-existent item', async () => {
+      mockAxios.onDelete('/{{SERVICE_NAME}}/non-existent-id').reply(404);
+
+      await expect(
+        service.delete('non-existent-id')
+      ).rejects.toThrow(ApiError);
+    });
+  });
+
+  describe('aggregateData', () => {
+    it('should aggregate data from multiple sources', async () => {
+      mockAxios.onGet(`/{{SERVICE_NAME}}/${mockItem.id}`).reply(200, mockItem);
+
+      const result = await service.aggregateData(mockItem.id);
+
+      expect(result).toHaveProperty('item');
+      expect(result.item).toEqual(mockItem);
+    });
+
+    it('should handle partial failures gracefully', async () => {
+      mockAxios.onGet(`/{{SERVICE_NAME}}/${mockItem.id}`).reply(200, mockItem);
+      // Related data endpoint fails
+      mockAxios.onGet(`/related/${mockItem.id}`).reply(500);
+
+      const result = await service.aggregateData(mockItem.id);
+
+      expect(result).toHaveProperty('item');
+      expect(result.item).toEqual(mockItem);
+    });
+  });
+
+  describe('retry logic', () => {
+    it('should retry on network errors', async () => {
+      let attempts = 0;
+      mockAxios.onGet('/{{SERVICE_NAME}}').reply(() => {
+        attempts++;
+        if (attempts < 3) {
+          return [500, { message: 'Server error' }];
+        }
+        return [200, { items: [mockItem], page: 1, limit: 10, total: 1, totalPages: 1 }];
+      });
+
+      const result = await service.getAll({ page: 1, limit: 10 });
+
+      expect(attempts).toBe(3);
+      expect(result.items).toHaveLength(1);
+    });
+
+    it('should not retry on client errors', async () => {
+      let attempts = 0;
+      mockAxios.onGet('/{{SERVICE_NAME}}').reply(() => {
+        attempts++;
+        return [400, { message: 'Bad request' }];
+      });
+
+      await expect(
+        service.getAll({ page: 1, limit: 10 })
+      ).rejects.toThrow(ApiError);
+
+      expect(attempts).toBe(1);
+    });
+  });
+
+  describe('cache management', () => {
+    it('should enable and disable cache', () => {
+      service.enableCache();
+      service.disableCache();
+      // No errors should be thrown
+    });
+
+    it('should set cache TTL', () => {
+      service.setCacheTTL(600);
+      // No errors should be thrown
+    });
+  });
+
+  describe('error transformation', () => {
+    it('should transform axios errors to ApiError', async () => {
+      mockAxios.onGet('/{{SERVICE_NAME}}').reply(403, {
+        message: 'Forbidden'
+      });
+
+      await expect(
+        service.getAll({ page: 1, limit: 10 })
+      ).rejects.toThrow(ApiError);
+    });
+
+    it('should handle timeout errors', async () => {
+      mockAxios.onGet('/{{SERVICE_NAME}}').timeout();
+
+      await expect(
+        service.getAll({ page: 1, limit: 10 })
+      ).rejects.toThrow();
+    });
+  });
+});

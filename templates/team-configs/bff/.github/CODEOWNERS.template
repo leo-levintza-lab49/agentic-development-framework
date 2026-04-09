@@ -1,0 +1,36 @@
+# Backend-for-Frontend Team Code Ownership
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owners for all BFF code
+# Minimum 1 reviewer required for all changes
+* @polybase-poc/bff
+
+# API Routes - Requires frontend team review for client-facing changes
+/src/routes/** @polybase-poc/bff @polybase-poc/frontend
+/src/api/** @polybase-poc/bff @polybase-poc/frontend
+
+# GraphQL Schema - Requires 2 reviewers for breaking changes
+/src/graphql/schema/** @polybase-poc/bff @polybase-poc/frontend
+/src/graphql/resolvers/** @polybase-poc/bff
+
+# Client contracts and types - Critical for frontend integration
+/src/types/client/** @polybase-poc/bff @polybase-poc/frontend
+/src/contracts/** @polybase-poc/bff @polybase-poc/frontend
+
+# Backend service integration - Backend team awareness required
+/src/services/** @polybase-poc/bff @polybase-poc/backend
+
+# Authentication and authorization - Security team review required
+/src/middleware/auth/** @polybase-poc/bff @polybase-poc/security
+
+# Configuration - DevOps and security review
+/config/** @polybase-poc/bff @polybase-poc/devops
+/.env.example @polybase-poc/bff @polybase-poc/devops
+
+# Infrastructure and deployment
+/docker/** @polybase-poc/bff @polybase-poc/devops
+/kubernetes/** @polybase-poc/bff @polybase-poc/devops
+/.github/workflows/** @polybase-poc/bff @polybase-poc/devops
+
+# Documentation
+/docs/** @polybase-poc/bff

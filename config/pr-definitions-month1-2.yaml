@@ -1,0 +1,923 @@
+# PR Definitions for Month 1-2 (Foundation Phase: October-November 2025)
+# This configuration defines 28 PRs across all repositories for the initial foundation setup
+# Timeline: October 7 - November 28, 2025 (8 weeks)
+
+metadata:
+  phase: foundation
+  month: 1-2
+  start_date: "2025-10-07"
+  end_date: "2025-11-28"
+  total_prs: 28
+  complexity_distribution:
+    mid-level: 22
+    senior-level: 6
+
+prs:
+  # Week 1: Database Layer Foundation (Oct 7-11)
+  - id: 1
+    repo: db-schemas
+    team: data-platform
+    branch: schema/v1.0.0/user-table
+    title: "Add user schema with audit fields"
+    description: |
+      Creates the foundational user table with:
+      - Standard user fields (email, name, username, hashed_password)
+      - Audit columns (created_at, updated_at, created_by, updated_by)
+      - Soft delete support (deleted_at, deleted_by)
+      - Indexes for email and username lookups
+      - UUID primary key for distributed system compatibility
+      - Email uniqueness constraint
+      - Username uniqueness constraint
+    files:
+      - schemas/users.sql
+      - migrations/001_create_users_table.sql
+      - docs/schema-users.md
+    dependencies: []
+    complexity: mid-level
+    created: "2025-10-07T09:00:00Z"
+    review_hours: 6
+
+  - id: 2
+    repo: db-schemas
+    team: data-platform
+    branch: schema/v1.0.0/order-table
+    title: "Add order schema with status tracking"
+    description: |
+      Creates the order management schema including:
+      - Order table with user reference
+      - Order status enum (pending, confirmed, processing, completed, cancelled)
+      - Order items table with product references
+      - Pricing and currency fields
+      - Timestamps for order lifecycle tracking
+      - Foreign key constraints to users table
+      - Indexes for user_id and status queries
+    files:
+      - schemas/orders.sql
+      - schemas/order_items.sql
+      - migrations/002_create_orders_table.sql
+      - migrations/003_create_order_items_table.sql
+      - docs/schema-orders.md
+    dependencies: [1]
+    complexity: mid-level
+    created: "2025-10-08T10:00:00Z"
+    review_hours: 6
+
+  - id: 3
+    repo: db-migrations
+    team: data-platform
+    branch: feature/liquibase-setup
+    title: "Set up Liquibase migration framework"
+    description: |
+      Configures Liquibase for database migrations:
+      - Liquibase Maven plugin configuration
+      - Database connection properties templates
+      - Master changelog file structure
+      - Migration rollback scripts
+      - Migration testing framework
+      - Documentation for creating new migrations
+      - CI/CD integration scripts
+    files:
+      - pom.xml
+      - src/main/resources/liquibase.properties
+      - src/main/resources/db/changelog/db.changelog-master.xml
+      - src/test/java/MigrationTest.java
+      - docs/migration-guide.md
+      - scripts/run-migration.sh
+      - scripts/rollback-migration.sh
+    dependencies: []
+    complexity: mid-level
+    created: "2025-10-09T09:30:00Z"
+    review_hours: 8
+
+  # Week 2: Backend Services Foundation (Oct 14-18)
+  - id: 4
+    repo: user-service
+    team: backend
+    branch: feature/PROJECT-101-logging-framework
+    title: "Set up logging framework with structured logging"
+    description: |
+      Implements comprehensive logging infrastructure:
+      - Logback configuration with JSON output
+      - Structured logging with correlation IDs
+      - MDC (Mapped Diagnostic Context) setup
+      - Log levels per environment (dev, staging, prod)
+      - Request/response logging interceptor
+      - Sensitive data masking for PII
+      - Integration with ELK stack format
+    files:
+      - src/main/resources/logback-spring.xml
+      - src/main/java/com/enterprise/user/config/LoggingConfig.java
+      - src/main/java/com/enterprise/user/interceptor/LoggingInterceptor.java
+      - src/main/java/com/enterprise/user/util/LoggingUtil.java
+      - src/test/java/com/enterprise/user/util/LoggingUtilTest.java
+      - docs/logging-standards.md
+    dependencies: []
+    complexity: mid-level
+    created: "2025-10-14T09:00:00Z"
+    review_hours: 6
+
+  - id: 5
+    repo: user-service
+    team: backend
+    branch: feature/PROJECT-102-domain-model
+    title: "Create user domain model and repository"
+    description: |
+      Implements core user domain model:
+      - User entity with JPA annotations
+      - UserRepository with Spring Data JPA
+      - Custom queries for email and username lookup
+      - User status enum (active, suspended, deleted)
+      - Domain validation rules
+      - Optimistic locking with version field
+      - Soft delete implementation
+      - Unit tests for repository layer
+    files:
+      - src/main/java/com/enterprise/user/domain/User.java
+      - src/main/java/com/enterprise/user/domain/UserStatus.java
+      - src/main/java/com/enterprise/user/repository/UserRepository.java
+      - src/main/java/com/enterprise/user/domain/BaseEntity.java
+      - src/test/java/com/enterprise/user/repository/UserRepositoryTest.java
+      - docs/domain-model.md
+    dependencies: [1, 3]
+    complexity: mid-level
+    created: "2025-10-15T10:30:00Z"
+    review_hours: 8
+
+  - id: 6
+    repo: user-service
+    team: backend
+    branch: feature/PROJECT-103-rest-api
+    title: "Implement user REST API endpoints"
+    description: |
+      Creates REST API for user management:
+      - UserController with CRUD endpoints
+      - POST /api/v1/users - Create user
+      - GET /api/v1/users/{id} - Get user by ID
+      - GET /api/v1/users?email={email} - Find by email
+      - PUT /api/v1/users/{id} - Update user
+      - DELETE /api/v1/users/{id} - Soft delete user
+      - Request/response DTOs with validation
+      - Exception handling with proper HTTP status codes
+      - OpenAPI/Swagger documentation
+      - Integration tests for all endpoints
+    files:
+      - src/main/java/com/enterprise/user/controller/UserController.java
+      - src/main/java/com/enterprise/user/dto/UserRequest.java
+      - src/main/java/com/enterprise/user/dto/UserResponse.java
+      - src/main/java/com/enterprise/user/service/UserService.java
+      - src/main/java/com/enterprise/user/service/impl/UserServiceImpl.java
+      - src/main/java/com/enterprise/user/exception/GlobalExceptionHandler.java
+      - src/test/java/com/enterprise/user/controller/UserControllerTest.java
+      - src/test/java/com/enterprise/user/integration/UserApiIntegrationTest.java
+      - docs/api-documentation.md
+    dependencies: [5]
+    complexity: senior-level
+    created: "2025-10-16T09:00:00Z"
+    review_hours: 12
+
+  # Week 3: Authentication Service (Oct 21-25)
+  - id: 7
+    repo: auth-service
+    team: backend
+    branch: feature/PROJECT-201-jwt-token-generation
+    title: "Implement JWT token generation and validation"
+    description: |
+      Creates JWT-based authentication infrastructure:
+      - JWT token generation with configurable expiration
+      - Token validation and parsing
+      - Refresh token support
+      - Token revocation mechanism
+      - RSA key pair management for signing
+      - Token claims customization (roles, permissions)
+      - Security configuration with Spring Security
+      - Unit tests for token operations
+    files:
+      - src/main/java/com/enterprise/auth/security/JwtTokenProvider.java
+      - src/main/java/com/enterprise/auth/security/JwtTokenValidator.java
+      - src/main/java/com/enterprise/auth/config/SecurityConfig.java
+      - src/main/java/com/enterprise/auth/dto/TokenResponse.java
+      - src/main/java/com/enterprise/auth/repository/RefreshTokenRepository.java
+      - src/main/resources/keys/public-key.pem
+      - src/main/resources/keys/private-key.pem
+      - src/test/java/com/enterprise/auth/security/JwtTokenProviderTest.java
+      - docs/jwt-implementation.md
+    dependencies: []
+    complexity: senior-level
+    created: "2025-10-21T09:00:00Z"
+    review_hours: 16
+
+  - id: 8
+    repo: auth-service
+    team: backend
+    branch: feature/PROJECT-202-login-endpoint
+    title: "Create authentication endpoints"
+    description: |
+      Implements authentication REST API:
+      - POST /api/v1/auth/login - User authentication
+      - POST /api/v1/auth/refresh - Token refresh
+      - POST /api/v1/auth/logout - Token revocation
+      - Password validation against stored hash
+      - Rate limiting for login attempts
+      - Failed login tracking and account lockout
+      - Integration with user-service for user lookup
+      - Comprehensive integration tests
+    files:
+      - src/main/java/com/enterprise/auth/controller/AuthController.java
+      - src/main/java/com/enterprise/auth/service/AuthService.java
+      - src/main/java/com/enterprise/auth/service/impl/AuthServiceImpl.java
+      - src/main/java/com/enterprise/auth/dto/LoginRequest.java
+      - src/main/java/com/enterprise/auth/dto/LoginResponse.java
+      - src/main/java/com/enterprise/auth/client/UserServiceClient.java
+      - src/main/java/com/enterprise/auth/security/RateLimitFilter.java
+      - src/test/java/com/enterprise/auth/controller/AuthControllerTest.java
+      - src/test/java/com/enterprise/auth/integration/AuthApiIntegrationTest.java
+      - docs/authentication-flow.md
+    dependencies: [6, 7]
+    complexity: senior-level
+    created: "2025-10-22T10:00:00Z"
+    review_hours: 14
+
+  # Week 4: Order Service (Oct 28 - Nov 1)
+  - id: 9
+    repo: order-service
+    team: backend
+    branch: feature/PROJECT-301-order-domain-model
+    title: "Create order domain model and repository"
+    description: |
+      Implements order management domain:
+      - Order entity with JPA annotations
+      - OrderItem entity for line items
+      - OrderStatus enum and state machine
+      - OrderRepository with Spring Data JPA
+      - Custom queries for order lookup by user and status
+      - Aggregate root pattern for order consistency
+      - Domain events for order lifecycle
+      - Repository unit tests
+    files:
+      - src/main/java/com/enterprise/order/domain/Order.java
+      - src/main/java/com/enterprise/order/domain/OrderItem.java
+      - src/main/java/com/enterprise/order/domain/OrderStatus.java
+      - src/main/java/com/enterprise/order/repository/OrderRepository.java
+      - src/main/java/com/enterprise/order/repository/OrderItemRepository.java
+      - src/main/java/com/enterprise/order/event/OrderCreatedEvent.java
+      - src/test/java/com/enterprise/order/repository/OrderRepositoryTest.java
+      - docs/order-domain-model.md
+    dependencies: [2, 3]
+    complexity: mid-level
+    created: "2025-10-28T09:00:00Z"
+    review_hours: 8
+
+  - id: 10
+    repo: order-service
+    team: backend
+    branch: feature/PROJECT-302-order-creation-api
+    title: "Implement order creation endpoint"
+    description: |
+      Creates order creation REST API:
+      - POST /api/v1/orders - Create new order
+      - Order validation logic
+      - User verification via user-service
+      - Order total calculation
+      - Idempotency key support
+      - Transaction management
+      - Order creation event publishing
+      - Integration tests with test containers
+    files:
+      - src/main/java/com/enterprise/order/controller/OrderController.java
+      - src/main/java/com/enterprise/order/service/OrderService.java
+      - src/main/java/com/enterprise/order/service/impl/OrderServiceImpl.java
+      - src/main/java/com/enterprise/order/dto/CreateOrderRequest.java
+      - src/main/java/com/enterprise/order/dto/OrderResponse.java
+      - src/main/java/com/enterprise/order/validator/OrderValidator.java
+      - src/main/java/com/enterprise/order/client/UserServiceClient.java
+      - src/test/java/com/enterprise/order/controller/OrderControllerTest.java
+      - src/test/java/com/enterprise/order/integration/OrderCreationIntegrationTest.java
+      - docs/order-creation-api.md
+    dependencies: [9]
+    complexity: senior-level
+    created: "2025-10-29T10:30:00Z"
+    review_hours: 12
+
+  # Week 5: BFF Layer (Nov 4-8)
+  - id: 11
+    repo: web-bff
+    team: bff
+    branch: feature/PROJECT-401-typescript-setup
+    title: "Set up TypeScript and Express framework"
+    description: |
+      Establishes BFF project foundation:
+      - TypeScript configuration with strict mode
+      - Express server setup with type definitions
+      - Environment configuration management
+      - Logging middleware with Winston
+      - Error handling middleware
+      - Request validation with Joi
+      - CORS configuration
+      - Health check endpoint
+      - Basic unit test setup with Jest
+    files:
+      - tsconfig.json
+      - src/index.ts
+      - src/config/environment.ts
+      - src/middleware/logging.ts
+      - src/middleware/errorHandler.ts
+      - src/middleware/requestValidator.ts
+      - src/routes/health.ts
+      - src/types/index.ts
+      - tests/setup.ts
+      - tests/health.test.ts
+      - package.json
+      - docs/bff-architecture.md
+    dependencies: []
+    complexity: mid-level
+    created: "2025-11-04T09:00:00Z"
+    review_hours: 6
+
+  - id: 12
+    repo: web-bff
+    team: bff
+    branch: feature/PROJECT-402-user-endpoints
+    title: "Create user-related BFF endpoints"
+    description: |
+      Implements user operations aggregation:
+      - GET /api/users/me - Get current user profile
+      - PUT /api/users/me - Update user profile
+      - POST /api/users/register - User registration
+      - HTTP client for user-service
+      - Response transformation and mapping
+      - Error handling and retry logic
+      - Request/response caching strategy
+      - Integration tests
+    files:
+      - src/routes/users.ts
+      - src/controllers/userController.ts
+      - src/services/userService.ts
+      - src/clients/userServiceClient.ts
+      - src/types/user.types.ts
+      - src/middleware/auth.ts
+      - src/utils/responseMapper.ts
+      - tests/controllers/userController.test.ts
+      - tests/integration/user.integration.test.ts
+      - docs/user-endpoints.md
+    dependencies: [6, 11]
+    complexity: mid-level
+    created: "2025-11-05T10:00:00Z"
+    review_hours: 8
+
+  - id: 13
+    repo: web-bff
+    team: bff
+    branch: feature/PROJECT-403-order-endpoints
+    title: "Create order-related BFF endpoints"
+    description: |
+      Implements order operations aggregation:
+      - POST /api/orders - Create order
+      - GET /api/orders - List user orders
+      - GET /api/orders/:id - Get order details
+      - Order data enrichment with user info
+      - HTTP client for order-service
+      - Aggregate data from multiple services
+      - Pagination support
+      - Integration tests
+    files:
+      - src/routes/orders.ts
+      - src/controllers/orderController.ts
+      - src/services/orderService.ts
+      - src/clients/orderServiceClient.ts
+      - src/types/order.types.ts
+      - src/utils/dataEnricher.ts
+      - src/utils/pagination.ts
+      - tests/controllers/orderController.test.ts
+      - tests/integration/order.integration.test.ts
+      - docs/order-endpoints.md
+    dependencies: [10, 12]
+    complexity: mid-level
+    created: "2025-11-06T10:30:00Z"
+    review_hours: 8
+
+  - id: 14
+    repo: web-bff
+    team: bff
+    branch: feature/PROJECT-404-auth-endpoints
+    title: "Create authentication BFF endpoints"
+    description: |
+      Implements authentication flow:
+      - POST /api/auth/login - User login
+      - POST /api/auth/logout - User logout
+      - POST /api/auth/refresh - Token refresh
+      - JWT token management in BFF
+      - Secure cookie handling
+      - Session management
+      - HTTP client for auth-service
+      - Integration tests
+    files:
+      - src/routes/auth.ts
+      - src/controllers/authController.ts
+      - src/services/authService.ts
+      - src/clients/authServiceClient.ts
+      - src/types/auth.types.ts
+      - src/middleware/session.ts
+      - src/utils/cookieManager.ts
+      - tests/controllers/authController.test.ts
+      - tests/integration/auth.integration.test.ts
+      - docs/auth-flow.md
+    dependencies: [8, 11]
+    complexity: senior-level
+    created: "2025-11-07T09:00:00Z"
+    review_hours: 12
+
+  # Week 6: Component Library (Nov 11-15)
+  - id: 15
+    repo: component-library
+    team: frontend
+    branch: feature/PROJECT-501-design-tokens
+    title: "Create design system tokens"
+    description: |
+      Establishes design system foundation:
+      - Color palette with semantic naming
+      - Typography scale and font definitions
+      - Spacing scale (4px base unit)
+      - Border radius tokens
+      - Shadow elevation system
+      - Breakpoint definitions
+      - Z-index scale
+      - Animation duration tokens
+      - CSS custom properties export
+      - TypeScript type definitions
+    files:
+      - src/tokens/colors.ts
+      - src/tokens/typography.ts
+      - src/tokens/spacing.ts
+      - src/tokens/borders.ts
+      - src/tokens/shadows.ts
+      - src/tokens/breakpoints.ts
+      - src/tokens/zIndex.ts
+      - src/tokens/animations.ts
+      - src/tokens/index.ts
+      - src/styles/tokens.css
+      - docs/design-tokens.md
+    dependencies: []
+    complexity: mid-level
+    created: "2025-11-11T09:00:00Z"
+    review_hours: 6
+
+  - id: 16
+    repo: component-library
+    team: frontend
+    branch: feature/PROJECT-502-button-component
+    title: "Create Button component with variants"
+    description: |
+      Implements reusable button component:
+      - Button component with TypeScript
+      - Variants (primary, secondary, tertiary, danger)
+      - Sizes (small, medium, large)
+      - Loading state with spinner
+      - Disabled state
+      - Icon support (left/right)
+      - Full width option
+      - Accessibility features (ARIA attributes)
+      - Unit tests with React Testing Library
+      - Storybook stories for all variants
+    files:
+      - src/components/Button/Button.tsx
+      - src/components/Button/Button.types.ts
+      - src/components/Button/Button.styles.ts
+      - src/components/Button/Button.test.tsx
+      - src/components/Button/Button.stories.tsx
+      - src/components/Button/index.ts
+      - src/components/Spinner/Spinner.tsx
+      - docs/components/button.md
+    dependencies: [15]
+    complexity: mid-level
+    created: "2025-11-12T10:00:00Z"
+    review_hours: 6
+
+  - id: 17
+    repo: component-library
+    team: frontend
+    branch: feature/PROJECT-503-form-components
+    title: "Create form input components"
+    description: |
+      Implements form input components:
+      - TextInput component with validation
+      - TextArea component
+      - Select/Dropdown component
+      - Checkbox component
+      - Radio component
+      - FormField wrapper with label and error display
+      - Input masking support
+      - Error state styling
+      - Accessibility compliance (WCAG 2.1 AA)
+      - Unit tests for all components
+      - Storybook stories with form examples
+    files:
+      - src/components/TextInput/TextInput.tsx
+      - src/components/TextInput/TextInput.test.tsx
+      - src/components/TextInput/TextInput.stories.tsx
+      - src/components/TextArea/TextArea.tsx
+      - src/components/Select/Select.tsx
+      - src/components/Checkbox/Checkbox.tsx
+      - src/components/Radio/Radio.tsx
+      - src/components/FormField/FormField.tsx
+      - src/components/FormField/FormField.test.tsx
+      - src/hooks/useFormValidation.ts
+      - docs/components/forms.md
+    dependencies: [15]
+    complexity: mid-level
+    created: "2025-11-13T09:30:00Z"
+    review_hours: 8
+
+  # Week 7: Web Application (Nov 18-22)
+  - id: 18
+    repo: web-app
+    team: frontend
+    branch: feature/PROJECT-601-vite-react-setup
+    title: "Set up Vite + React + TypeScript project"
+    description: |
+      Establishes web application foundation:
+      - Vite configuration with React plugin
+      - TypeScript strict mode configuration
+      - React Router v6 setup
+      - Redux Toolkit for state management
+      - React Query for server state
+      - Environment variable management
+      - Path aliases configuration
+      - ESLint and Prettier setup
+      - Vitest for unit testing
+      - Testing library setup
+      - Build optimization configuration
+    files:
+      - vite.config.ts
+      - tsconfig.json
+      - src/main.tsx
+      - src/App.tsx
+      - src/router/index.tsx
+      - src/store/index.ts
+      - src/store/slices/.gitkeep
+      - src/api/client.ts
+      - src/types/index.ts
+      - src/vite-env.d.ts
+      - .eslintrc.json
+      - .prettierrc
+      - vitest.config.ts
+      - tests/setup.ts
+      - package.json
+      - docs/project-setup.md
+    dependencies: []
+    complexity: mid-level
+    created: "2025-11-18T09:00:00Z"
+    review_hours: 6
+
+  - id: 19
+    repo: web-app
+    team: frontend
+    branch: feature/PROJECT-602-login-page
+    title: "Create login page with authentication"
+    description: |
+      Implements user login functionality:
+      - Login page component
+      - Login form with validation
+      - Integration with component library
+      - Redux auth slice for auth state
+      - API integration with web-bff auth endpoints
+      - Token storage in secure cookies
+      - Error handling and display
+      - Loading states
+      - Remember me functionality
+      - Redirect to protected routes after login
+      - Unit tests for login flow
+      - E2E tests with Playwright
+    files:
+      - src/pages/Login/Login.tsx
+      - src/pages/Login/Login.styles.ts
+      - src/pages/Login/Login.test.tsx
+      - src/store/slices/authSlice.ts
+      - src/store/slices/authSlice.test.ts
+      - src/api/auth.ts
+      - src/hooks/useAuth.ts
+      - src/utils/tokenManager.ts
+      - src/components/LoginForm/LoginForm.tsx
+      - tests/e2e/login.spec.ts
+      - docs/authentication.md
+    dependencies: [14, 16, 17, 18]
+    complexity: senior-level
+    created: "2025-11-19T10:00:00Z"
+    review_hours: 12
+
+  - id: 20
+    repo: web-app
+    team: frontend
+    branch: feature/PROJECT-603-user-profile-page
+    title: "Create user profile page"
+    description: |
+      Implements user profile management:
+      - Profile page component
+      - Profile display section
+      - Profile edit form
+      - Integration with web-bff user endpoints
+      - Form validation with Yup
+      - Optimistic updates
+      - Success/error notifications
+      - Loading and error states
+      - Protected route implementation
+      - Unit tests
+      - E2E tests
+    files:
+      - src/pages/Profile/Profile.tsx
+      - src/pages/Profile/Profile.styles.ts
+      - src/pages/Profile/Profile.test.tsx
+      - src/components/ProfileForm/ProfileForm.tsx
+      - src/components/ProfileForm/ProfileForm.test.tsx
+      - src/api/users.ts
+      - src/store/slices/userSlice.ts
+      - src/components/ProtectedRoute/ProtectedRoute.tsx
+      - src/components/Notification/Notification.tsx
+      - tests/e2e/profile.spec.ts
+      - docs/profile-management.md
+    dependencies: [12, 19]
+    complexity: mid-level
+    created: "2025-11-20T09:30:00Z"
+    review_hours: 8
+
+  - id: 21
+    repo: web-app
+    team: frontend
+    branch: feature/PROJECT-604-order-list-page
+    title: "Create order listing page"
+    description: |
+      Implements order history viewing:
+      - Order list page component
+      - Order list item component
+      - Order status badge component
+      - Pagination controls
+      - Filter by status
+      - Sort by date
+      - Integration with web-bff order endpoints
+      - Empty state handling
+      - Loading skeleton
+      - Error state handling
+      - Unit tests
+      - E2E tests
+    files:
+      - src/pages/Orders/OrderList.tsx
+      - src/pages/Orders/OrderList.styles.ts
+      - src/pages/Orders/OrderList.test.tsx
+      - src/components/OrderListItem/OrderListItem.tsx
+      - src/components/OrderStatusBadge/OrderStatusBadge.tsx
+      - src/components/Pagination/Pagination.tsx
+      - src/api/orders.ts
+      - src/store/slices/orderSlice.ts
+      - src/hooks/useOrders.ts
+      - tests/e2e/orders.spec.ts
+      - docs/order-management.md
+    dependencies: [13, 19]
+    complexity: mid-level
+    created: "2025-11-21T10:00:00Z"
+    review_hours: 8
+
+  # Week 8: Integration & Observability (Nov 25-28)
+  - id: 22
+    repo: user-service
+    team: backend
+    branch: test/PROJECT-701-integration-tests
+    title: "Add comprehensive integration test suite"
+    description: |
+      Implements end-to-end integration testing:
+      - TestContainers setup for PostgreSQL
+      - Integration test base configuration
+      - Full CRUD operation tests
+      - Authentication integration tests
+      - Database transaction tests
+      - Error scenario tests
+      - Performance baseline tests
+      - Test data builders and fixtures
+      - CI/CD integration
+    files:
+      - src/test/java/com/enterprise/user/integration/IntegrationTestBase.java
+      - src/test/java/com/enterprise/user/integration/UserServiceIntegrationTest.java
+      - src/test/java/com/enterprise/user/integration/UserAuthIntegrationTest.java
+      - src/test/java/com/enterprise/user/integration/DatabaseTransactionTest.java
+      - src/test/java/com/enterprise/user/fixtures/UserFixtures.java
+      - src/test/resources/application-integration-test.yml
+      - src/test/resources/test-data.sql
+      - docs/integration-testing.md
+    dependencies: [6, 8]
+    complexity: mid-level
+    created: "2025-11-25T09:00:00Z"
+    review_hours: 8
+
+  - id: 23
+    repo: order-service
+    team: backend
+    branch: test/PROJECT-702-integration-tests
+    title: "Add order service integration tests"
+    description: |
+      Implements integration testing for orders:
+      - TestContainers configuration
+      - Order creation flow tests
+      - Order status transition tests
+      - Order query tests
+      - Multi-service integration tests
+      - Concurrent order creation tests
+      - Error handling tests
+      - Test fixtures and data builders
+    files:
+      - src/test/java/com/enterprise/order/integration/IntegrationTestBase.java
+      - src/test/java/com/enterprise/order/integration/OrderCreationIntegrationTest.java
+      - src/test/java/com/enterprise/order/integration/OrderStatusIntegrationTest.java
+      - src/test/java/com/enterprise/order/integration/OrderQueryIntegrationTest.java
+      - src/test/java/com/enterprise/order/fixtures/OrderFixtures.java
+      - src/test/resources/application-integration-test.yml
+      - docs/order-integration-tests.md
+    dependencies: [10]
+    complexity: mid-level
+    created: "2025-11-25T10:30:00Z"
+    review_hours: 8
+
+  - id: 24
+    repo: web-app
+    team: frontend
+    branch: test/PROJECT-703-e2e-auth-flow
+    title: "Add E2E tests for authentication flow"
+    description: |
+      Implements end-to-end authentication testing:
+      - Playwright E2E test configuration
+      - Login flow E2E tests
+      - Logout flow E2E tests
+      - Protected route access tests
+      - Token refresh E2E tests
+      - Session timeout tests
+      - Multiple tab/window tests
+      - Test fixtures and page objects
+      - CI/CD pipeline integration
+    files:
+      - tests/e2e/auth/login.spec.ts
+      - tests/e2e/auth/logout.spec.ts
+      - tests/e2e/auth/protected-routes.spec.ts
+      - tests/e2e/auth/token-refresh.spec.ts
+      - tests/e2e/auth/session-timeout.spec.ts
+      - tests/e2e/fixtures/auth.fixture.ts
+      - tests/e2e/page-objects/LoginPage.ts
+      - tests/e2e/page-objects/ProfilePage.ts
+      - playwright.config.ts
+      - docs/e2e-testing.md
+    dependencies: [19, 20]
+    complexity: mid-level
+    created: "2025-11-26T09:00:00Z"
+    review_hours: 6
+
+  - id: 25
+    repo: grafana-dashboards
+    team: platform
+    branch: feature/PROJECT-801-service-dashboards
+    title: "Create initial service monitoring dashboards"
+    description: |
+      Implements observability dashboards:
+      - User service dashboard with key metrics
+      - Order service dashboard
+      - Auth service dashboard
+      - Web-BFF dashboard
+      - Dashboard provisioning configuration
+      - Common panels for JVM metrics
+      - HTTP request/response metrics
+      - Database connection pool metrics
+      - Error rate and latency percentiles
+      - Alert annotations
+      - Dashboard as code with Jsonnet
+    files:
+      - dashboards/user-service.json
+      - dashboards/order-service.json
+      - dashboards/auth-service.json
+      - dashboards/web-bff.json
+      - provisioning/dashboards.yml
+      - lib/common-panels.libsonnet
+      - lib/jvm-metrics.libsonnet
+      - lib/http-metrics.libsonnet
+      - docs/dashboard-guide.md
+    dependencies: [6, 10, 14]
+    complexity: mid-level
+    created: "2025-11-26T14:00:00Z"
+    review_hours: 6
+
+  - id: 26
+    repo: terraform-aws-infrastructure
+    team: platform
+    branch: feature/PROJECT-802-rds-postgres
+    title: "Create RDS PostgreSQL Terraform module"
+    description: |
+      Implements database infrastructure as code:
+      - RDS PostgreSQL instance module
+      - Multi-AZ deployment configuration
+      - Automated backups setup
+      - Security group configuration
+      - Parameter group customization
+      - Subnet group for private subnets
+      - Secrets Manager integration for credentials
+      - CloudWatch alarms for monitoring
+      - Tags and naming conventions
+      - Module documentation
+    files:
+      - modules/rds-postgres/main.tf
+      - modules/rds-postgres/variables.tf
+      - modules/rds-postgres/outputs.tf
+      - modules/rds-postgres/security-groups.tf
+      - modules/rds-postgres/cloudwatch.tf
+      - modules/rds-postgres/README.md
+      - environments/dev/rds.tf
+      - environments/staging/rds.tf
+      - docs/rds-module.md
+    dependencies: []
+    complexity: mid-level
+    created: "2025-11-27T09:00:00Z"
+    review_hours: 8
+
+  - id: 27
+    repo: terraform-aws-infrastructure
+    team: platform
+    branch: feature/PROJECT-803-ecs-service
+    title: "Create ECS Fargate service Terraform module"
+    description: |
+      Implements container orchestration infrastructure:
+      - ECS cluster module
+      - ECS Fargate task definition
+      - ECS service with auto-scaling
+      - Application Load Balancer configuration
+      - Target group with health checks
+      - Service discovery configuration
+      - CloudWatch log groups
+      - IAM roles and policies
+      - Security groups for services
+      - Module outputs for service endpoints
+    files:
+      - modules/ecs-service/main.tf
+      - modules/ecs-service/variables.tf
+      - modules/ecs-service/outputs.tf
+      - modules/ecs-service/alb.tf
+      - modules/ecs-service/autoscaling.tf
+      - modules/ecs-service/iam.tf
+      - modules/ecs-service/security-groups.tf
+      - modules/ecs-service/cloudwatch.tf
+      - modules/ecs-service/README.md
+      - docs/ecs-module.md
+    dependencies: []
+    complexity: senior-level
+    created: "2025-11-27T14:00:00Z"
+    review_hours: 12
+
+  - id: 28
+    repo: component-library
+    team: frontend
+    branch: docs/PROJECT-504-storybook-setup
+    title: "Set up Storybook documentation site"
+    description: |
+      Implements component documentation system:
+      - Storybook 7.x configuration
+      - TypeScript support
+      - Addon configuration (a11y, actions, controls)
+      - Design tokens documentation
+      - Component usage examples
+      - Accessibility tests integration
+      - Visual regression testing setup
+      - Build and deployment configuration
+      - Custom Storybook theme
+      - Documentation pages for design system
+    files:
+      - .storybook/main.ts
+      - .storybook/preview.ts
+      - .storybook/theme.ts
+      - .storybook/manager.ts
+      - stories/Introduction.stories.mdx
+      - stories/DesignTokens.stories.mdx
+      - stories/Colors.stories.mdx
+      - stories/Typography.stories.mdx
+      - scripts/build-storybook.sh
+      - docs/storybook-guide.md
+    dependencies: [15, 16, 17]
+    complexity: mid-level
+    created: "2025-11-28T09:00:00Z"
+    review_hours: 6
+
+# Summary Statistics
+summary:
+  week_1_prs: 3
+  week_2_prs: 3
+  week_3_prs: 2
+  week_4_prs: 2
+  week_5_prs: 4
+  week_6_prs: 3
+  week_7_prs: 4
+  week_8_prs: 7
+
+  by_team:
+    data-platform: 3
+    backend: 8
+    bff: 4
+    frontend: 9
+    platform: 4
+
+  by_complexity:
+    mid-level: 22
+    senior-level: 6
+
+  total_review_hours: 228
+  average_review_hours: 8.1

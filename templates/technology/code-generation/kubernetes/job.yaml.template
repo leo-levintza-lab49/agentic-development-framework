@@ -1,0 +1,60 @@
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{JOB_NAME}}
+  labels:
+    app: {{APP_NAME}}
+spec:
+  # Number of times to retry before marking as failed
+  backoffLimit: {{BACKOFF_LIMIT}}
+
+  # Number of successful completions needed
+  completions: {{COMPLETIONS}}
+
+  # Number of pods to run in parallel
+  parallelism: {{PARALLELISM}}
+
+  # Time to keep completed job (seconds)
+  ttlSecondsAfterFinished: {{TTL_SECONDS}}
+
+  # Maximum time for job to complete (seconds)
+  activeDeadlineSeconds: {{ACTIVE_DEADLINE_SECONDS}}
+
+  template:
+    metadata:
+      labels:
+        app: {{APP_NAME}}
+        job: {{JOB_NAME}}
+    spec:
+      restartPolicy: {{RESTART_POLICY}}
+      containers:
+      - name: {{CONTAINER_NAME}}
+        image: {{IMAGE}}
+        imagePullPolicy: {{IMAGE_PULL_POLICY}}
+        command: {{COMMAND}}
+        args: {{ARGS}}
+        env:
+        {{ENV_VARS}}
+        resources:
+          requests:
+            cpu: {{CPU_REQUEST}}
+            memory: {{MEMORY_REQUEST}}
+          limits:
+            cpu: {{CPU_LIMIT}}
+            memory: {{MEMORY_LIMIT}}
+        volumeMounts:
+        {{VOLUME_MOUNTS}}
+      volumes:
+      {{VOLUMES}}
+      {{IMAGE_PULL_SECRETS}}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: {{RUN_AS_USER}}
+        fsGroup: {{FS_GROUP}}
+
+# Example usage:
+# kubectl create job my-job --image=busybox -- echo "Hello World"
+# kubectl get jobs
+# kubectl logs job/my-job
+# kubectl delete job my-job

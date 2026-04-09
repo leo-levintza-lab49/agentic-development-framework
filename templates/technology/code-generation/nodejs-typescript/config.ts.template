@@ -1,0 +1,178 @@
+import dotenv from 'dotenv';
+import path from 'path';
+
+// Load environment variables from .env file
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+
+/**
+ * Application configuration
+ */
+export interface Config {
+  env: string;
+  port: number;
+  apiPrefix: string;
+  jwt: {
+    secret: string;
+    expiresIn: string;
+  };
+  cors: {
+    allowedOrigins: string[];
+  };
+  rateLimit: {
+    windowMs: number;
+    maxRequests: number;
+  };
+  logging: {
+    level: string;
+    format: string;
+  };
+  redis: {
+    host: string;
+    port: number;
+    password?: string;
+    db: number;
+  };
+  backend: {
+    baseUrl: string;
+    timeout: number;
+    retries: number;
+  };
+  cache: {
+    enabled: boolean;
+    ttl: number;
+  };
+}
+
+/**
+ * Get environment variable with validation
+ */
+function getEnv(key: string, defaultValue?: string): string {
+  const value = process.env[key];
+  if (!value && !defaultValue) {
+    throw new Error(`Environment variable ${key} is required but not set`);
+  }
+  return value || defaultValue!;
+}
+
+/**
+ * Parse boolean environment variable
+ */
+function parseBool(value: string | undefined, defaultValue: boolean): boolean {
+  if (!value) return defaultValue;
+  return value.toLowerCase() === 'true' || value === '1';
+}
+
+/**
+ * Parse integer environment variable
+ */
+function parseInt(value: string | undefined, defaultValue: number): number {
+  if (!value) return defaultValue;
+  const parsed = Number.parseInt(value, 10);
+  return Number.isNaN(parsed) ? defaultValue : parsed;
+}
+
+/**
+ * Parse JSON array environment variable
+ */
+function parseArray(value: string | undefined, defaultValue: string[]): string[] {
+  if (!value) return defaultValue;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value.split(',').map(item => item.trim());
+  }
+}
+
+/**
+ * Application configuration object
+ */
+export const config: Config = {
+  env: getEnv('NODE_ENV', 'development'),
+  port: parseInt(process.env.PORT, 3000),
+  apiPrefix: getEnv('API_PREFIX', '/api/v1'),
+
+  jwt: {
+    secret: getEnv('JWT_SECRET', 'change-this-secret-in-production'),
+    expiresIn: getEnv('JWT_EXPIRES_IN', '24h')
+  },
+
+  cors: {
+    allowedOrigins: parseArray(process.env.CORS_ALLOWED_ORIGINS, ['http://localhost:3000'])
+  },
+
+  rateLimit: {
+    windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS, 15 * 60 * 1000), // 15 minutes
+    maxRequests: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS, 100)
+  },
+
+  logging: {
+    level: getEnv('LOG_LEVEL', 'info'),
+    format: getEnv('LOG_FORMAT', 'json')
+  },
+
+  redis: {
+    host: getEnv('REDIS_HOST', 'localhost'),
+    port: parseInt(process.env.REDIS_PORT, 6379),
+    password: process.env.REDIS_PASSWORD,
+    db: parseInt(process.env.REDIS_DB, 0)
+  },
+
+  backend: {
+    baseUrl: getEnv('BACKEND_BASE_URL', 'http://localhost:8000'),
+    timeout: parseInt(process.env.BACKEND_TIMEOUT, 10000),
+    retries: parseInt(process.env.BACKEND_RETRIES, 3)
+  },
+
+  cache: {
+    enabled: parseBool(process.env.CACHE_ENABLED, true),
+    ttl: parseInt(process.env.CACHE_TTL, 300) // 5 minutes
+  }
+};
+
+/**
+ * Validate configuration on startup
+ */
+export function validateConfig(): void {
+  const requiredVars = ['JWT_SECRET'];
+  const missing: string[] = [];
+
+  for (const varName of requiredVars) {
+    if (!process.env[varName] && config.env === 'production') {
+      missing.push(varName);
+    }
+  }
+
+  if (missing.length > 0) {
+    throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
+  }
+}
+
+/**
+ * Get configuration summary for logging
+ */
+export function getConfigSummary(): Record<string, any> {
+  return {
+    env: config.env,
+    port: config.port,
+    apiPrefix: config.apiPrefix,
+    cors: config.cors,
+    rateLimit: config.rateLimit,
+    logging: config.logging,
+    redis: {
+      host: config.redis.host,
+      port: config.redis.port,
+      db: config.redis.db
+    },
+    backend: {
+      baseUrl: config.backend.baseUrl,
+      timeout: config.backend.timeout,
+      retries: config.backend.retries
+    },
+    cache: config.cache
+  };
+}
+
+// Validate configuration on module load
+if (config.env === 'production') {
+  validateConfig();
+}

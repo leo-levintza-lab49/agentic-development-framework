@@ -1,0 +1,63 @@
+# Mobile Team Code Owners
+#
+# This file defines code ownership for the mobile codebase.
+# When a pull request modifies files in these directories, the specified
+# teams will automatically be requested for review.
+#
+# Review requirements:
+# - Platform-specific code: 1 reviewer from the platform team
+# - Shared code: 2 reviewers (1 from iOS, 1 from Android)
+#
+# For more information: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# iOS Platform Code
+ios/**                           @polybase-poc/mobile-ios
+*.swift                          @polybase-poc/mobile-ios
+*.xcodeproj/**                   @polybase-poc/mobile-ios
+*.xcworkspace/**                 @polybase-poc/mobile-ios
+Podfile                          @polybase-poc/mobile-ios
+Podfile.lock                     @polybase-poc/mobile-ios
+ios/fastlane/**                  @polybase-poc/mobile-ios
+
+# Android Platform Code
+android/**                       @polybase-poc/mobile-android
+*.kt                             @polybase-poc/mobile-android
+*.java                           @polybase-poc/mobile-android
+*.gradle                         @polybase-poc/mobile-android
+gradle.properties                @polybase-poc/mobile-android
+android/fastlane/**              @polybase-poc/mobile-android
+
+# Shared/Cross-Platform Code (requires both platform reviewers)
+shared/**                        @polybase-poc/mobile-ios @polybase-poc/mobile-android
+src/shared/**                    @polybase-poc/mobile-ios @polybase-poc/mobile-android
+common/**                        @polybase-poc/mobile-ios @polybase-poc/mobile-android
+
+# React Native Specific
+*.tsx                            @polybase-poc/mobile-ios @polybase-poc/mobile-android
+*.ts                             @polybase-poc/mobile-ios @polybase-poc/mobile-android
+*.jsx                            @polybase-poc/mobile-ios @polybase-poc/mobile-android
+*.js                             @polybase-poc/mobile-ios @polybase-poc/mobile-android
+package.json                     @polybase-poc/mobile-ios @polybase-poc/mobile-android
+package-lock.json                @polybase-poc/mobile-ios @polybase-poc/mobile-android
+
+# Native Modules (requires both platforms due to bridge code)
+ios/Modules/**                   @polybase-poc/mobile-ios @polybase-poc/mobile-android
+android/app/src/main/java/**/modules/**  @polybase-poc/mobile-ios @polybase-poc/mobile-android
+
+# Configuration Files
+.eslintrc.*                      @polybase-poc/mobile-ios @polybase-poc/mobile-android
+.prettierrc.*                    @polybase-poc/mobile-ios @polybase-poc/mobile-android
+tsconfig.json                    @polybase-poc/mobile-ios @polybase-poc/mobile-android
+babel.config.js                  @polybase-poc/mobile-ios @polybase-poc/mobile-android
+metro.config.js                  @polybase-poc/mobile-ios @polybase-poc/mobile-android
+
+# CI/CD and Build Configuration
+.github/**                       @polybase-poc/mobile-ios @polybase-poc/mobile-android
+fastlane/**                      @polybase-poc/mobile-ios @polybase-poc/mobile-android
+.circleci/**                     @polybase-poc/mobile-ios @polybase-poc/mobile-android
+.gitlab-ci.yml                   @polybase-poc/mobile-ios @polybase-poc/mobile-android
+
+# Documentation
+docs/**                          @polybase-poc/mobile-ios @polybase-poc/mobile-android
+README.md                        @polybase-poc/mobile-ios @polybase-poc/mobile-android
+CONTRIBUTING.md                  @polybase-poc/mobile-ios @polybase-poc/mobile-android

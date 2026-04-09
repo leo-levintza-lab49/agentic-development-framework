@@ -1,0 +1,131 @@
+# {{REPO_NAME}}
+
+{{DESCRIPTION}}
+
+## Overview
+
+This repository is part of the {{ORG_NAME}} organization and follows our standard development practices and Claude Code workflows.
+
+## Tech Stack
+
+{{TECH_STACK}}
+
+## Getting Started
+
+### Prerequisites
+
+{{PREREQUISITES}}
+
+### Installation
+
+```bash
+# Clone the repository
+git clone https://github.com/{{ORG_NAME}}/{{REPO_NAME}}.git
+cd {{REPO_NAME}}
+
+{{INSTALL_COMMANDS}}
+```
+
+### Running Locally
+
+```bash
+{{RUN_COMMANDS}}
+```
+
+## Development
+
+### Project Structure
+
+```
+{{PROJECT_STRUCTURE}}
+```
+
+### Running Tests
+
+```bash
+{{TEST_COMMANDS}}
+```
+
+### Building
+
+```bash
+{{BUILD_COMMANDS}}
+```
+
+### Linting
+
+```bash
+{{LINT_COMMANDS}}
+```
+
+## Claude Code Configuration
+
+This repository uses Claude Code for AI-assisted development. Configuration is stored in `.claude/`.
+
+### Key Features
+
+- 🔒 Security scanning and validation
+- 📝 Automated code quality checks
+- 🔄 Git workflow automation
+- 📊 Status line integration
+
+### Usage
+
+```bash
+# Start Claude Code in this repository
+claude code
+
+# Check configuration
+cat .claude/settings.json
+```
+
+## CI/CD
+
+This repository uses GitHub Actions for continuous integration and deployment.
+
+- **CI Pipeline**: Runs on every pull request
+  - Linting and code quality checks
+  - Unit and integration tests
+  - Security scanning
+
+- **CD Pipeline**: Runs on merge to main
+  - Automated builds
+  - Deployment to staging environment
+
+See [.github/workflows/](.github/workflows/) for workflow details.
+
+## Contributing
+
+### Branch Strategy
+
+- `main` - Production-ready code
+- `develop` - Integration branch for features
+- `feature/*` - Feature branches
+- `bugfix/*` - Bug fix branches
+
+### Pull Request Process
+
+1. Create a feature branch from `develop`
+2. Make your changes
+3. Run tests locally
+4. Create a pull request
+5. Ensure all CI checks pass
+6. Request review from team members
+7. Merge after approval
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed guidelines.
+
+## Team
+
+**Owner**: {{TEAM_NAME}}
+
+**Maintainers**:
+- TBD
+
+## License
+
+{{LICENSE}}
+
+---
+
+Built with ❤️ by the {{TEAM_NAME}} team

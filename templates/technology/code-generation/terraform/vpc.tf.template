@@ -1,0 +1,304 @@
+# VPC Module Template
+# Description: Creates a production-ready VPC with public and private subnets across multiple AZs
+# Placeholders: {{VPC_NAME}}, {{CIDR_BLOCK}}, {{ENVIRONMENT}}, {{PROJECT}}
+
+locals {
+  vpc_name = "{{VPC_NAME}}"
+  cidr     = "{{CIDR_BLOCK}}" # e.g., "10.0.0.0/16"
+
+  azs             = data.aws_availability_zones.available.names
+  private_subnets = [for k, v in local.azs : cidrsubnet(local.cidr, 4, k)]
+  public_subnets  = [for k, v in local.azs : cidrsubnet(local.cidr, 4, k + 4)]
+  database_subnets = [for k, v in local.azs : cidrsubnet(local.cidr, 4, k + 8)]
+
+  tags = {
+    Environment = "{{ENVIRONMENT}}"
+    Project     = "{{PROJECT}}"
+    ManagedBy   = "terraform"
+  }
+}
+
+data "aws_availability_zones" "available" {
+  state = "available"
+}
+
+# VPC
+resource "aws_vpc" "main" {
+  cidr_block           = local.cidr
+  enable_dns_hostnames = true
+  enable_dns_support   = true
+
+  tags = merge(
+    local.tags,
+    {
+      Name = local.vpc_name
+    }
+  )
+}
+
+# Internet Gateway
+resource "aws_internet_gateway" "main" {
+  vpc_id = aws_vpc.main.id
+
+  tags = merge(
+    local.tags,
+    {
+      Name = "${local.vpc_name}-igw"
+    }
+  )
+}
+
+# Elastic IPs for NAT Gateways
+resource "aws_eip" "nat" {
+  count  = length(local.azs)
+  domain = "vpc"
+
+  tags = merge(
+    local.tags,
+    {
+      Name = "${local.vpc_name}-nat-eip-${local.azs[count.index]}"
+    }
+  )
+
+  depends_on = [aws_internet_gateway.main]
+}
+
+# Public Subnets
+resource "aws_subnet" "public" {
+  count             = length(local.public_subnets)
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = local.public_subnets[count.index]
+  availability_zone = local.azs[count.index]
+
+  map_public_ip_on_launch = true
+
+  tags = merge(
+    local.tags,
+    {
+      Name = "${local.vpc_name}-public-${local.azs[count.index]}"
+      Type = "public"
+      "kubernetes.io/role/elb" = "1" # For AWS Load Balancer Controller
+    }
+  )
+}
+
+# Private Subnets
+resource "aws_subnet" "private" {
+  count             = length(local.private_subnets)
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = local.private_subnets[count.index]
+  availability_zone = local.azs[count.index]
+
+  tags = merge(
+    local.tags,
+    {
+      Name = "${local.vpc_name}-private-${local.azs[count.index]}"
+      Type = "private"
+      "kubernetes.io/role/internal-elb" = "1" # For AWS Load Balancer Controller
+    }
+  )
+}
+
+# Database Subnets
+resource "aws_subnet" "database" {
+  count             = length(local.database_subnets)
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = local.database_subnets[count.index]
+  availability_zone = local.azs[count.index]
+
+  tags = merge(
+    local.tags,
+    {
+      Name = "${local.vpc_name}-database-${local.azs[count.index]}"
+      Type = "database"
+    }
+  )
+}
+
+# NAT Gateways
+resource "aws_nat_gateway" "main" {
+  count         = length(local.azs)
+  allocation_id = aws_eip.nat[count.index].id
+  subnet_id     = aws_subnet.public[count.index].id
+
+  tags = merge(
+    local.tags,
+    {
+      Name = "${local.vpc_name}-nat-${local.azs[count.index]}"
+    }
+  )
+
+  depends_on = [aws_internet_gateway.main]
+}
+
+# Public Route Table
+resource "aws_route_table" "public" {
+  vpc_id = aws_vpc.main.id
+
+  tags = merge(
+    local.tags,
+    {
+      Name = "${local.vpc_name}-public-rt"
+    }
+  )
+}
+
+# Public Route
+resource "aws_route" "public_internet_gateway" {
+  route_table_id         = aws_route_table.public.id
+  destination_cidr_block = "0.0.0.0/0"
+  gateway_id             = aws_internet_gateway.main.id
+}
+
+# Public Route Table Association
+resource "aws_route_table_association" "public" {
+  count          = length(local.public_subnets)
+  subnet_id      = aws_subnet.public[count.index].id
+  route_table_id = aws_route_table.public.id
+}
+
+# Private Route Tables (one per AZ)
+resource "aws_route_table" "private" {
+  count  = length(local.azs)
+  vpc_id = aws_vpc.main.id
+
+  tags = merge(
+    local.tags,
+    {
+      Name = "${local.vpc_name}-private-rt-${local.azs[count.index]}"
+    }
+  )
+}
+
+# Private Routes
+resource "aws_route" "private_nat_gateway" {
+  count                  = length(local.azs)
+  route_table_id         = aws_route_table.private[count.index].id
+  destination_cidr_block = "0.0.0.0/0"
+  nat_gateway_id         = aws_nat_gateway.main[count.index].id
+}
+
+# Private Route Table Association
+resource "aws_route_table_association" "private" {
+  count          = length(local.private_subnets)
+  subnet_id      = aws_subnet.private[count.index].id
+  route_table_id = aws_route_table.private[count.index].id
+}
+
+# Database Route Table
+resource "aws_route_table" "database" {
+  vpc_id = aws_vpc.main.id
+
+  tags = merge(
+    local.tags,
+    {
+      Name = "${local.vpc_name}-database-rt"
+    }
+  )
+}
+
+# Database Route Table Association
+resource "aws_route_table_association" "database" {
+  count          = length(local.database_subnets)
+  subnet_id      = aws_subnet.database[count.index].id
+  route_table_id = aws_route_table.database.id
+}
+
+# VPC Flow Logs
+resource "aws_flow_log" "main" {
+  vpc_id          = aws_vpc.main.id
+  traffic_type    = "ALL"
+  iam_role_arn    = aws_iam_role.vpc_flow_log.arn
+  log_destination = aws_cloudwatch_log_group.vpc_flow_log.arn
+
+  tags = merge(
+    local.tags,
+    {
+      Name = "${local.vpc_name}-flow-logs"
+    }
+  )
+}
+
+resource "aws_cloudwatch_log_group" "vpc_flow_log" {
+  name              = "/aws/vpc/${local.vpc_name}"
+  retention_in_days = 30
+
+  tags = local.tags
+}
+
+resource "aws_iam_role" "vpc_flow_log" {
+  name = "${local.vpc_name}-vpc-flow-log-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Service = "vpc-flow-logs.amazonaws.com"
+        }
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
+
+  tags = local.tags
+}
+
+resource "aws_iam_role_policy" "vpc_flow_log" {
+  name = "${local.vpc_name}-vpc-flow-log-policy"
+  role = aws_iam_role.vpc_flow_log.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents",
+          "logs:DescribeLogGroups",
+          "logs:DescribeLogStreams"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+# Outputs
+output "vpc_id" {
+  description = "The ID of the VPC"
+  value       = aws_vpc.main.id
+}
+
+output "vpc_cidr_block" {
+  description = "The CIDR block of the VPC"
+  value       = aws_vpc.main.cidr_block
+}
+
+output "public_subnet_ids" {
+  description = "List of IDs of public subnets"
+  value       = aws_subnet.public[*].id
+}
+
+output "private_subnet_ids" {
+  description = "List of IDs of private subnets"
+  value       = aws_subnet.private[*].id
+}
+
+output "database_subnet_ids" {
+  description = "List of IDs of database subnets"
+  value       = aws_subnet.database[*].id
+}
+
+output "nat_gateway_ids" {
+  description = "List of NAT Gateway IDs"
+  value       = aws_nat_gateway.main[*].id
+}
+
+output "internet_gateway_id" {
+  description = "ID of the Internet Gateway"
+  value       = aws_internet_gateway.main.id
+}

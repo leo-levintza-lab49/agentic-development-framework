@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Template: Liquibase Changeset
+     Description: Liquibase XML format for schema changes with rollback support
+     Variables: {{CHANGESET_ID}}, {{AUTHOR}}, {{TABLE_NAME}}, {{COLUMNS}}, {{DESCRIPTION}} -->
+
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:ext="http://www.liquibase.org/xml/ns/dbchangelog-ext"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.20.xsd
+        http://www.liquibase.org/xml/ns/dbchangelog-ext
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-ext.xsd">
+
+    <!-- Changeset: {{CHANGESET_ID}} -->
+    <changeSet id="{{CHANGESET_ID}}" author="{{AUTHOR}}">
+        <comment>{{DESCRIPTION}}</comment>
+
+        <!-- Create Table -->
+        <createTable tableName="{{TABLE_NAME}}" remarks="{{DESCRIPTION}}">
+            <!-- Primary Key -->
+            <column name="id" type="BIGSERIAL">
+                <constraints primaryKey="true" primaryKeyName="pk_{{TABLE_NAME}}"/>
+            </column>
+
+            <!-- Custom Columns -->
+            {{COLUMNS}}
+
+            <!-- Audit Timestamps -->
+            <column name="created_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="TIMESTAMP WITH TIME ZONE" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="deleted_at" type="TIMESTAMP WITH TIME ZONE"/>
+
+            <!-- Audit Fields -->
+            <column name="created_by" type="VARCHAR(255)"/>
+            <column name="updated_by" type="VARCHAR(255)"/>
+        </createTable>
+
+        <!-- Add Table Comment -->
+        <sql>
+            COMMENT ON TABLE {{TABLE_NAME}} IS '{{DESCRIPTION}}';
+        </sql>
+
+        <!-- Create Indexes -->
+        <createIndex indexName="idx_{{TABLE_NAME}}_created_at" tableName="{{TABLE_NAME}}">
+            <column name="created_at"/>
+        </createIndex>
+
+        <createIndex indexName="idx_{{TABLE_NAME}}_updated_at" tableName="{{TABLE_NAME}}">
+            <column name="updated_at"/>
+        </createIndex>
+
+        <createIndex indexName="idx_{{TABLE_NAME}}_deleted_at" tableName="{{TABLE_NAME}}">
+            <column name="deleted_at"/>
+        </createIndex>
+
+        <!-- Create updated_at trigger -->
+        <sql splitStatements="false">
+            CREATE OR REPLACE FUNCTION update_updated_at_column()
+            RETURNS TRIGGER AS $$
+            BEGIN
+                NEW.updated_at = CURRENT_TIMESTAMP;
+                RETURN NEW;
+            END;
+            $$ language 'plpgsql';
+
+            DROP TRIGGER IF EXISTS update_{{TABLE_NAME}}_updated_at ON {{TABLE_NAME}};
+            CREATE TRIGGER update_{{TABLE_NAME}}_updated_at
+                BEFORE UPDATE ON {{TABLE_NAME}}
+                FOR EACH ROW
+                EXECUTE FUNCTION update_updated_at_column();
+        </sql>
+
+        <!-- Rollback Instructions -->
+        <rollback>
+            <dropTable tableName="{{TABLE_NAME}}" cascadeConstraints="true"/>
+            <sql>DROP FUNCTION IF EXISTS update_updated_at_column() CASCADE;</sql>
+        </rollback>
+    </changeSet>
+
+    <!-- Example: Add Column Changeset -->
+    <!-- <changeSet id="{{CHANGESET_ID}}-add-column" author="{{AUTHOR}}">
+        <addColumn tableName="{{TABLE_NAME}}">
+            <column name="new_column" type="VARCHAR(255)">
+                <constraints nullable="true"/>
+            </column>
+        </addColumn>
+        <rollback>
+            <dropColumn tableName="{{TABLE_NAME}}" columnName="new_column"/>
+        </rollback>
+    </changeSet> -->
+
+    <!-- Example: Modify Column Changeset -->
+    <!-- <changeSet id="{{CHANGESET_ID}}-modify-column" author="{{AUTHOR}}">
+        <modifyDataType tableName="{{TABLE_NAME}}" columnName="column_name" newDataType="TEXT"/>
+        <rollback>
+            <modifyDataType tableName="{{TABLE_NAME}}" columnName="column_name" newDataType="VARCHAR(255)"/>
+        </rollback>
+    </changeSet> -->
+
+</databaseChangeLog>

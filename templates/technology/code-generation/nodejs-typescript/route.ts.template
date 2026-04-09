@@ -1,0 +1,222 @@
+import { Router, Request, Response, NextFunction } from 'express';
+import { body, param, query, validationResult } from 'express-validator';
+import { {{SERVICE_NAME}}Service } from '../services/{{SERVICE_NAME}}.service';
+import { ApiError } from '../errors/ApiError';
+import { logger } from '../utils/logger';
+
+const router = Router();
+const {{SERVICE_NAME}}Service = new {{SERVICE_NAME}}Service();
+
+/**
+ * Validation middleware to check for validation errors
+ */
+const validate = (req: Request, res: Response, next: NextFunction) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({
+      success: false,
+      errors: errors.array()
+    });
+  }
+  next();
+};
+
+/**
+ * GET /{{ROUTE_NAME}}
+ * Get all {{ROUTE_NAME}} with optional filtering and pagination
+ */
+router.get(
+  '/',
+  [
+    query('page').optional().isInt({ min: 1 }).toInt(),
+    query('limit').optional().isInt({ min: 1, max: 100 }).toInt(),
+    query('sort').optional().isString(),
+    query('order').optional().isIn(['asc', 'desc']),
+    validate
+  ],
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { page = 1, limit = 10, sort, order } = req.query;
+
+      logger.info('Fetching {{ROUTE_NAME}}', { page, limit, sort, order });
+
+      const result = await {{SERVICE_NAME}}Service.getAll({
+        page: Number(page),
+        limit: Number(limit),
+        sort: sort as string,
+        order: order as 'asc' | 'desc'
+      });
+
+      res.json({
+        success: true,
+        data: result.items,
+        pagination: {
+          page: result.page,
+          limit: result.limit,
+          total: result.total,
+          totalPages: result.totalPages
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * GET /{{ROUTE_NAME}}/:id
+ * Get a single {{ROUTE_NAME}} by ID
+ */
+router.get(
+  '/:id',
+  [
+    param('id').isUUID().withMessage('Invalid ID format'),
+    validate
+  ],
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+
+      logger.info('Fetching {{ROUTE_NAME}} by ID', { id });
+
+      const item = await {{SERVICE_NAME}}Service.getById(id);
+
+      if (!item) {
+        throw new ApiError(404, `{{ROUTE_NAME}} with ID ${id} not found`);
+      }
+
+      res.json({
+        success: true,
+        data: item
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * POST /{{ROUTE_NAME}}
+ * Create a new {{ROUTE_NAME}}
+ */
+router.post(
+  '/',
+  [
+    body('name').notEmpty().isString().withMessage('Name is required'),
+    body('description').optional().isString(),
+    body('status').optional().isIn(['active', 'inactive', 'pending']),
+    validate
+  ],
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const data = req.body;
+
+      logger.info('Creating new {{ROUTE_NAME}}', { data });
+
+      const item = await {{SERVICE_NAME}}Service.create(data);
+
+      res.status(201).json({
+        success: true,
+        data: item
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * PUT /{{ROUTE_NAME}}/:id
+ * Update an existing {{ROUTE_NAME}}
+ */
+router.put(
+  '/:id',
+  [
+    param('id').isUUID().withMessage('Invalid ID format'),
+    body('name').optional().isString(),
+    body('description').optional().isString(),
+    body('status').optional().isIn(['active', 'inactive', 'pending']),
+    validate
+  ],
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      const data = req.body;
+
+      logger.info('Updating {{ROUTE_NAME}}', { id, data });
+
+      const item = await {{SERVICE_NAME}}Service.update(id, data);
+
+      if (!item) {
+        throw new ApiError(404, `{{ROUTE_NAME}} with ID ${id} not found`);
+      }
+
+      res.json({
+        success: true,
+        data: item
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * PATCH /{{ROUTE_NAME}}/:id
+ * Partially update an existing {{ROUTE_NAME}}
+ */
+router.patch(
+  '/:id',
+  [
+    param('id').isUUID().withMessage('Invalid ID format'),
+    validate
+  ],
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      const data = req.body;
+
+      logger.info('Partially updating {{ROUTE_NAME}}', { id, data });
+
+      const item = await {{SERVICE_NAME}}Service.patch(id, data);
+
+      if (!item) {
+        throw new ApiError(404, `{{ROUTE_NAME}} with ID ${id} not found`);
+      }
+
+      res.json({
+        success: true,
+        data: item
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * DELETE /{{ROUTE_NAME}}/:id
+ * Delete a {{ROUTE_NAME}}
+ */
+router.delete(
+  '/:id',
+  [
+    param('id').isUUID().withMessage('Invalid ID format'),
+    validate
+  ],
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+
+      logger.info('Deleting {{ROUTE_NAME}}', { id });
+
+      await {{SERVICE_NAME}}Service.delete(id);
+
+      res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+export default router;

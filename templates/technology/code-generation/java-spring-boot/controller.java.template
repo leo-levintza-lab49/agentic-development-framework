@@ -1,0 +1,351 @@
+package {{PACKAGE_NAME}}.controller;
+
+import {{PACKAGE_NAME}}.dto.{{ENTITY_NAME}}Request;
+import {{PACKAGE_NAME}}.dto.{{ENTITY_NAME}}Response;
+import {{PACKAGE_NAME}}.service.{{SERVICE_NAME}};
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.validation.annotation.Validated;
+import org.springframework.web.bind.annotation.*;
+
+import javax.validation.Valid;
+import javax.validation.constraints.NotEmpty;
+import java.net.URI;
+import java.time.LocalDateTime;
+import java.util.List;
+
+/**
+ * REST controller for {{ENTITY_NAME}} management.
+ * Provides endpoints for CRUD operations and queries.
+ *
+ * @author Generated
+ * @version 1.0
+ */
+@RestController
+@RequestMapping("{{BASE_PATH}}")
+@Tag(name = "{{ENTITY_NAME}}", description = "{{ENTITY_NAME}} management APIs")
+@RequiredArgsConstructor
+@Validated
+@Slf4j
+public class {{CONTROLLER_NAME}} {
+
+    private final {{SERVICE_NAME}} service;
+
+    /**
+     * Create a new {{ENTITY_NAME}}.
+     *
+     * @param request the request body containing entity data
+     * @return the created entity with HTTP 201 status
+     */
+    @PostMapping
+    @Operation(summary = "Create a new {{ENTITY_NAME}}", description = "Creates a new {{ENTITY_NAME}} entity")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "{{ENTITY_NAME}} created successfully",
+                    content = @Content(schema = @Schema(implementation = {{ENTITY_NAME}}Response.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid request body"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized"),
+            @ApiResponse(responseCode = "403", description = "Forbidden")
+    })
+    @PreAuthorize("hasAuthority('{{ENTITY_NAME}}_CREATE')")
+    public ResponseEntity<{{ENTITY_NAME}}Response> create(
+            @Valid @RequestBody {{ENTITY_NAME}}Request request) {
+        log.info("Creating new {{ENTITY_NAME}}");
+
+        {{ENTITY_NAME}}Response response = service.create(request);
+
+        return ResponseEntity
+                .created(URI.create("{{BASE_PATH}}/" + response.getId()))
+                .body(response);
+    }
+
+    /**
+     * Get a {{ENTITY_NAME}} by ID.
+     *
+     * @param id the entity identifier
+     * @return the entity with HTTP 200 status
+     */
+    @GetMapping("/{id}")
+    @Operation(summary = "Get {{ENTITY_NAME}} by ID", description = "Retrieves a {{ENTITY_NAME}} by its identifier")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "{{ENTITY_NAME}} found",
+                    content = @Content(schema = @Schema(implementation = {{ENTITY_NAME}}Response.class))),
+            @ApiResponse(responseCode = "404", description = "{{ENTITY_NAME}} not found"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized")
+    })
+    @PreAuthorize("hasAuthority('{{ENTITY_NAME}}_READ')")
+    public ResponseEntity<{{ENTITY_NAME}}Response> findById(
+            @Parameter(description = "{{ENTITY_NAME}} ID", required = true)
+            @PathVariable Long id) {
+        log.debug("Finding {{ENTITY_NAME}} by id: {}", id);
+
+        {{ENTITY_NAME}}Response response = service.findById(id);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Get all {{ENTITY_NAME}} entities with pagination.
+     *
+     * @param pageable pagination parameters
+     * @return page of entities with HTTP 200 status
+     */
+    @GetMapping
+    @Operation(summary = "Get all {{ENTITY_NAME}} entities", description = "Retrieves all {{ENTITY_NAME}} entities with pagination")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "{{ENTITY_NAME}} entities retrieved successfully"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized")
+    })
+    @PreAuthorize("hasAuthority('{{ENTITY_NAME}}_READ')")
+    public ResponseEntity<Page<{{ENTITY_NAME}}Response>> findAll(
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC)
+            Pageable pageable) {
+        log.debug("Finding all {{ENTITY_NAME}} entities with pageable: {}", pageable);
+
+        Page<{{ENTITY_NAME}}Response> response = service.findAllActive(pageable);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Update a {{ENTITY_NAME}}.
+     *
+     * @param id the entity identifier
+     * @param request the request body containing updated data
+     * @return the updated entity with HTTP 200 status
+     */
+    @PutMapping("/{id}")
+    @Operation(summary = "Update {{ENTITY_NAME}}", description = "Updates an existing {{ENTITY_NAME}} entity")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "{{ENTITY_NAME}} updated successfully",
+                    content = @Content(schema = @Schema(implementation = {{ENTITY_NAME}}Response.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid request body"),
+            @ApiResponse(responseCode = "404", description = "{{ENTITY_NAME}} not found"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized"),
+            @ApiResponse(responseCode = "409", description = "Version conflict - optimistic locking failure")
+    })
+    @PreAuthorize("hasAuthority('{{ENTITY_NAME}}_UPDATE')")
+    public ResponseEntity<{{ENTITY_NAME}}Response> update(
+            @Parameter(description = "{{ENTITY_NAME}} ID", required = true)
+            @PathVariable Long id,
+            @Valid @RequestBody {{ENTITY_NAME}}Request request) {
+        log.info("Updating {{ENTITY_NAME}} with id: {}", id);
+
+        {{ENTITY_NAME}}Response response = service.update(id, request);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Partially update a {{ENTITY_NAME}}.
+     *
+     * @param id the entity identifier
+     * @param request the request body containing partial data
+     * @return the updated entity with HTTP 200 status
+     */
+    @PatchMapping("/{id}")
+    @Operation(summary = "Partially update {{ENTITY_NAME}}", description = "Partially updates a {{ENTITY_NAME}} entity")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "{{ENTITY_NAME}} updated successfully",
+                    content = @Content(schema = @Schema(implementation = {{ENTITY_NAME}}Response.class))),
+            @ApiResponse(responseCode = "404", description = "{{ENTITY_NAME}} not found"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized")
+    })
+    @PreAuthorize("hasAuthority('{{ENTITY_NAME}}_UPDATE')")
+    public ResponseEntity<{{ENTITY_NAME}}Response> partialUpdate(
+            @Parameter(description = "{{ENTITY_NAME}} ID", required = true)
+            @PathVariable Long id,
+            @RequestBody {{ENTITY_NAME}}Request request) {
+        log.info("Partially updating {{ENTITY_NAME}} with id: {}", id);
+
+        {{ENTITY_NAME}}Response response = service.partialUpdate(id, request);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Delete a {{ENTITY_NAME}} (soft delete).
+     *
+     * @param id the entity identifier
+     * @return HTTP 204 No Content
+     */
+    @DeleteMapping("/{id}")
+    @Operation(summary = "Delete {{ENTITY_NAME}}", description = "Soft deletes a {{ENTITY_NAME}} entity")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "{{ENTITY_NAME}} deleted successfully"),
+            @ApiResponse(responseCode = "404", description = "{{ENTITY_NAME}} not found"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized")
+    })
+    @PreAuthorize("hasAuthority('{{ENTITY_NAME}}_DELETE')")
+    public ResponseEntity<Void> delete(
+            @Parameter(description = "{{ENTITY_NAME}} ID", required = true)
+            @PathVariable Long id) {
+        log.info("Deleting {{ENTITY_NAME}} with id: {}", id);
+
+        service.delete(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Restore a soft-deleted {{ENTITY_NAME}}.
+     *
+     * @param id the entity identifier
+     * @return the restored entity with HTTP 200 status
+     */
+    @PostMapping("/{id}/restore")
+    @Operation(summary = "Restore {{ENTITY_NAME}}", description = "Restores a soft-deleted {{ENTITY_NAME}} entity")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "{{ENTITY_NAME}} restored successfully",
+                    content = @Content(schema = @Schema(implementation = {{ENTITY_NAME}}Response.class))),
+            @ApiResponse(responseCode = "404", description = "{{ENTITY_NAME}} not found"),
+            @ApiResponse(responseCode = "400", description = "{{ENTITY_NAME}} is not deleted"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized")
+    })
+    @PreAuthorize("hasAuthority('{{ENTITY_NAME}}_UPDATE')")
+    public ResponseEntity<{{ENTITY_NAME}}Response> restore(
+            @Parameter(description = "{{ENTITY_NAME}} ID", required = true)
+            @PathVariable Long id) {
+        log.info("Restoring {{ENTITY_NAME}} with id: {}", id);
+
+        {{ENTITY_NAME}}Response response = service.restore(id);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Check if a {{ENTITY_NAME}} exists.
+     *
+     * @param id the entity identifier
+     * @return HTTP 200 if exists, HTTP 404 if not found
+     */
+    @GetMapping("/{id}/exists")
+    @Operation(summary = "Check {{ENTITY_NAME}} existence", description = "Checks if a {{ENTITY_NAME}} exists")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "{{ENTITY_NAME}} exists"),
+            @ApiResponse(responseCode = "404", description = "{{ENTITY_NAME}} not found"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized")
+    })
+    @PreAuthorize("hasAuthority('{{ENTITY_NAME}}_READ')")
+    public ResponseEntity<Void> exists(
+            @Parameter(description = "{{ENTITY_NAME}} ID", required = true)
+            @PathVariable Long id) {
+        log.debug("Checking if {{ENTITY_NAME}} exists with id: {}", id);
+
+        boolean exists = service.exists(id);
+        return exists ? ResponseEntity.ok().build() : ResponseEntity.notFound().build();
+    }
+
+    /**
+     * Count all active {{ENTITY_NAME}} entities.
+     *
+     * @return count with HTTP 200 status
+     */
+    @GetMapping("/count")
+    @Operation(summary = "Count {{ENTITY_NAME}} entities", description = "Counts all active {{ENTITY_NAME}} entities")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Count retrieved successfully"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized")
+    })
+    @PreAuthorize("hasAuthority('{{ENTITY_NAME}}_READ')")
+    public ResponseEntity<Long> count() {
+        log.debug("Counting active {{ENTITY_NAME}} entities");
+
+        long count = service.countActive();
+        return ResponseEntity.ok(count);
+    }
+
+    /**
+     * Find {{ENTITY_NAME}} entities created after a specific date.
+     *
+     * @param date the cutoff date
+     * @param pageable pagination parameters
+     * @return page of entities with HTTP 200 status
+     */
+    @GetMapping("/created-after")
+    @Operation(summary = "Find {{ENTITY_NAME}} created after date", description = "Retrieves {{ENTITY_NAME}} entities created after a specific date")
+    @PreAuthorize("hasAuthority('{{ENTITY_NAME}}_READ')")
+    public ResponseEntity<Page<{{ENTITY_NAME}}Response>> findCreatedAfter(
+            @Parameter(description = "Cutoff date (ISO format)", required = true)
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime date,
+            @PageableDefault(size = 20, sort = "createdAt", direction = Sort.Direction.DESC)
+            Pageable pageable) {
+        log.debug("Finding {{ENTITY_NAME}} entities created after: {}", date);
+
+        Page<{{ENTITY_NAME}}Response> response = service.findCreatedAfter(date, pageable);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Find {{ENTITY_NAME}} entities updated after a specific date.
+     *
+     * @param date the cutoff date
+     * @param pageable pagination parameters
+     * @return page of entities with HTTP 200 status
+     */
+    @GetMapping("/updated-after")
+    @Operation(summary = "Find {{ENTITY_NAME}} updated after date", description = "Retrieves {{ENTITY_NAME}} entities updated after a specific date")
+    @PreAuthorize("hasAuthority('{{ENTITY_NAME}}_READ')")
+    public ResponseEntity<Page<{{ENTITY_NAME}}Response>> findUpdatedAfter(
+            @Parameter(description = "Cutoff date (ISO format)", required = true)
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime date,
+            @PageableDefault(size = 20, sort = "updatedAt", direction = Sort.Direction.DESC)
+            Pageable pageable) {
+        log.debug("Finding {{ENTITY_NAME}} entities updated after: {}", date);
+
+        Page<{{ENTITY_NAME}}Response> response = service.findUpdatedAfter(date, pageable);
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * Bulk create multiple {{ENTITY_NAME}} entities.
+     *
+     * @param requests list of request bodies
+     * @return list of created entities with HTTP 201 status
+     */
+    @PostMapping("/bulk")
+    @Operation(summary = "Bulk create {{ENTITY_NAME}} entities", description = "Creates multiple {{ENTITY_NAME}} entities at once")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "{{ENTITY_NAME}} entities created successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid request body"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized")
+    })
+    @PreAuthorize("hasAuthority('{{ENTITY_NAME}}_CREATE')")
+    public ResponseEntity<List<{{ENTITY_NAME}}Response>> bulkCreate(
+            @Valid @RequestBody @NotEmpty List<{{ENTITY_NAME}}Request> requests) {
+        log.info("Bulk creating {} {{ENTITY_NAME}} entities", requests.size());
+
+        List<{{ENTITY_NAME}}Response> responses = service.bulkCreate(requests);
+        return ResponseEntity.status(HttpStatus.CREATED).body(responses);
+    }
+
+    /**
+     * Bulk delete multiple {{ENTITY_NAME}} entities.
+     *
+     * @param ids list of entity identifiers
+     * @return HTTP 204 No Content
+     */
+    @DeleteMapping("/bulk")
+    @Operation(summary = "Bulk delete {{ENTITY_NAME}} entities", description = "Soft deletes multiple {{ENTITY_NAME}} entities at once")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "{{ENTITY_NAME}} entities deleted successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid request"),
+            @ApiResponse(responseCode = "401", description = "Unauthorized")
+    })
+    @PreAuthorize("hasAuthority('{{ENTITY_NAME}}_DELETE')")
+    public ResponseEntity<Void> bulkDelete(
+            @RequestBody @NotEmpty List<Long> ids) {
+        log.info("Bulk deleting {} {{ENTITY_NAME}} entities", ids.size());
+
+        service.bulkDelete(ids);
+        return ResponseEntity.noContent().build();
+    }
+}

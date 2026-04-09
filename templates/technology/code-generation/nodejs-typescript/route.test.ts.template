@@ -1,0 +1,380 @@
+import request from 'supertest';
+import express, { Application } from 'express';
+import {{ROUTE_NAME}}Router from '../routes/{{ROUTE_NAME}}.routes';
+import { {{SERVICE_NAME}}Service } from '../services/{{SERVICE_NAME}}.service';
+import { {{MODEL_NAME}}, {{MODEL_NAME}}Status } from '../models/{{MODEL_NAME}}.model';
+import { errorHandler } from '../middleware/{{MIDDLEWARE_NAME}}.middleware';
+
+// Mock the service
+jest.mock('../services/{{SERVICE_NAME}}.service');
+
+// Mock logger
+jest.mock('../utils/logger', () => ({
+  logger: {
+    info: jest.fn(),
+    debug: jest.fn(),
+    warn: jest.fn(),
+    error: jest.fn()
+  }
+}));
+
+describe('{{TEST_NAME}} - Integration Tests', () => {
+  let app: Application;
+  let mockService: jest.Mocked<{{SERVICE_NAME}}Service>;
+
+  const mockItem: {{MODEL_NAME}} = {
+    id: '123e4567-e89b-12d3-a456-426614174000',
+    name: 'Test Item',
+    description: 'Test Description',
+    status: {{MODEL_NAME}}Status.ACTIVE,
+    createdAt: new Date('2024-01-01'),
+    updatedAt: new Date('2024-01-01')
+  };
+
+  beforeEach(() => {
+    // Create Express app
+    app = express();
+    app.use(express.json());
+    app.use('/{{ROUTE_NAME}}', {{ROUTE_NAME}}Router);
+    app.use(errorHandler);
+
+    // Get mocked service instance
+    mockService = new {{SERVICE_NAME}}Service() as jest.Mocked<{{SERVICE_NAME}}Service>;
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('GET /{{ROUTE_NAME}}', () => {
+    it('should return all items with pagination', async () => {
+      const mockResponse = {
+        items: [mockItem],
+        page: 1,
+        limit: 10,
+        total: 1,
+        totalPages: 1
+      };
+
+      mockService.getAll.mockResolvedValue(mockResponse);
+
+      const response = await request(app)
+        .get('/{{ROUTE_NAME}}')
+        .query({ page: 1, limit: 10 });
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data).toEqual([mockItem]);
+      expect(response.body.pagination).toBeDefined();
+      expect(response.body.pagination.page).toBe(1);
+      expect(response.body.pagination.total).toBe(1);
+    });
+
+    it('should handle pagination parameters', async () => {
+      const mockResponse = {
+        items: [mockItem],
+        page: 2,
+        limit: 5,
+        total: 10,
+        totalPages: 2
+      };
+
+      mockService.getAll.mockResolvedValue(mockResponse);
+
+      const response = await request(app)
+        .get('/{{ROUTE_NAME}}')
+        .query({ page: 2, limit: 5, sort: 'name', order: 'desc' });
+
+      expect(response.status).toBe(200);
+      expect(response.body.pagination.page).toBe(2);
+      expect(response.body.pagination.limit).toBe(5);
+    });
+
+    it('should validate pagination parameters', async () => {
+      const response = await request(app)
+        .get('/{{ROUTE_NAME}}')
+        .query({ page: -1, limit: 0 });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.errors).toBeDefined();
+    });
+
+    it('should handle service errors', async () => {
+      mockService.getAll.mockRejectedValue(new Error('Service error'));
+
+      const response = await request(app)
+        .get('/{{ROUTE_NAME}}');
+
+      expect(response.status).toBe(500);
+      expect(response.body.success).toBe(false);
+    });
+  });
+
+  describe('GET /{{ROUTE_NAME}}/:id', () => {
+    it('should return a single item by ID', async () => {
+      mockService.getById.mockResolvedValue(mockItem);
+
+      const response = await request(app)
+        .get(`/{{ROUTE_NAME}}/${mockItem.id}`);
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data).toEqual(mockItem);
+    });
+
+    it('should return 404 for non-existent item', async () => {
+      mockService.getById.mockResolvedValue(null);
+
+      const response = await request(app)
+        .get('/{{ROUTE_NAME}}/123e4567-e89b-12d3-a456-426614174999');
+
+      expect(response.status).toBe(404);
+      expect(response.body.success).toBe(false);
+    });
+
+    it('should validate UUID format', async () => {
+      const response = await request(app)
+        .get('/{{ROUTE_NAME}}/invalid-id');
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.errors).toBeDefined();
+    });
+  });
+
+  describe('POST /{{ROUTE_NAME}}', () => {
+    const newItemData = {
+      name: 'New Item',
+      description: 'New Description',
+      status: {{MODEL_NAME}}Status.PENDING
+    };
+
+    it('should create a new item', async () => {
+      const createdItem = {
+        ...newItemData,
+        id: '123e4567-e89b-12d3-a456-426614174001',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+
+      mockService.create.mockResolvedValue(createdItem);
+
+      const response = await request(app)
+        .post('/{{ROUTE_NAME}}')
+        .send(newItemData);
+
+      expect(response.status).toBe(201);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.name).toBe(newItemData.name);
+    });
+
+    it('should validate required fields', async () => {
+      const response = await request(app)
+        .post('/{{ROUTE_NAME}}')
+        .send({});
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+      expect(response.body.errors).toBeDefined();
+    });
+
+    it('should validate field types', async () => {
+      const response = await request(app)
+        .post('/{{ROUTE_NAME}}')
+        .send({
+          name: 123, // Should be string
+          status: 'invalid' // Should be valid enum value
+        });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+    });
+
+    it('should handle service errors during creation', async () => {
+      mockService.create.mockRejectedValue(new Error('Creation failed'));
+
+      const response = await request(app)
+        .post('/{{ROUTE_NAME}}')
+        .send(newItemData);
+
+      expect(response.status).toBe(500);
+      expect(response.body.success).toBe(false);
+    });
+  });
+
+  describe('PUT /{{ROUTE_NAME}}/:id', () => {
+    const updateData = {
+      name: 'Updated Item',
+      description: 'Updated Description'
+    };
+
+    it('should update an existing item', async () => {
+      const updatedItem = {
+        ...mockItem,
+        ...updateData,
+        updatedAt: new Date()
+      };
+
+      mockService.update.mockResolvedValue(updatedItem);
+
+      const response = await request(app)
+        .put(`/{{ROUTE_NAME}}/${mockItem.id}`)
+        .send(updateData);
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.name).toBe(updateData.name);
+    });
+
+    it('should return 404 for non-existent item', async () => {
+      mockService.update.mockResolvedValue(null);
+
+      const response = await request(app)
+        .put('/{{ROUTE_NAME}}/123e4567-e89b-12d3-a456-426614174999')
+        .send(updateData);
+
+      expect(response.status).toBe(404);
+      expect(response.body.success).toBe(false);
+    });
+
+    it('should validate UUID format', async () => {
+      const response = await request(app)
+        .put('/{{ROUTE_NAME}}/invalid-id')
+        .send(updateData);
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+    });
+  });
+
+  describe('PATCH /{{ROUTE_NAME}}/:id', () => {
+    const patchData = {
+      status: {{MODEL_NAME}}Status.INACTIVE
+    };
+
+    it('should partially update an item', async () => {
+      const patchedItem = {
+        ...mockItem,
+        ...patchData,
+        updatedAt: new Date()
+      };
+
+      mockService.patch.mockResolvedValue(patchedItem);
+
+      const response = await request(app)
+        .patch(`/{{ROUTE_NAME}}/${mockItem.id}`)
+        .send(patchData);
+
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.status).toBe(patchData.status);
+    });
+
+    it('should return 404 for non-existent item', async () => {
+      mockService.patch.mockResolvedValue(null);
+
+      const response = await request(app)
+        .patch('/{{ROUTE_NAME}}/123e4567-e89b-12d3-a456-426614174999')
+        .send(patchData);
+
+      expect(response.status).toBe(404);
+      expect(response.body.success).toBe(false);
+    });
+  });
+
+  describe('DELETE /{{ROUTE_NAME}}/:id', () => {
+    it('should delete an item', async () => {
+      mockService.delete.mockResolvedValue();
+
+      const response = await request(app)
+        .delete(`/{{ROUTE_NAME}}/${mockItem.id}`);
+
+      expect(response.status).toBe(204);
+    });
+
+    it('should validate UUID format', async () => {
+      const response = await request(app)
+        .delete('/{{ROUTE_NAME}}/invalid-id');
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+    });
+
+    it('should handle deletion errors', async () => {
+      mockService.delete.mockRejectedValue(new Error('Deletion failed'));
+
+      const response = await request(app)
+        .delete(`/{{ROUTE_NAME}}/${mockItem.id}`);
+
+      expect(response.status).toBe(500);
+      expect(response.body.success).toBe(false);
+    });
+  });
+
+  describe('Content-Type validation', () => {
+    it('should accept JSON content type', async () => {
+      const newItemData = {
+        name: 'New Item',
+        description: 'New Description'
+      };
+
+      mockService.create.mockResolvedValue({
+        ...newItemData,
+        id: mockItem.id,
+        status: {{MODEL_NAME}}Status.PENDING,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+
+      const response = await request(app)
+        .post('/{{ROUTE_NAME}}')
+        .set('Content-Type', 'application/json')
+        .send(newItemData);
+
+      expect(response.status).toBe(201);
+    });
+  });
+
+  describe('Error handling', () => {
+    it('should handle malformed JSON', async () => {
+      const response = await request(app)
+        .post('/{{ROUTE_NAME}}')
+        .set('Content-Type', 'application/json')
+        .send('invalid json');
+
+      expect(response.status).toBe(400);
+    });
+
+    it('should handle internal server errors', async () => {
+      mockService.getAll.mockRejectedValue(new Error('Database connection failed'));
+
+      const response = await request(app)
+        .get('/{{ROUTE_NAME}}');
+
+      expect(response.status).toBe(500);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toBeDefined();
+    });
+  });
+
+  describe('Query parameter validation', () => {
+    it('should validate sort order', async () => {
+      const response = await request(app)
+        .get('/{{ROUTE_NAME}}')
+        .query({ order: 'invalid' });
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+    });
+
+    it('should enforce maximum page size', async () => {
+      const response = await request(app)
+        .get('/{{ROUTE_NAME}}')
+        .query({ limit: 1000 }); // Exceeds max of 100
+
+      expect(response.status).toBe(400);
+      expect(response.body.success).toBe(false);
+    });
+  });
+});

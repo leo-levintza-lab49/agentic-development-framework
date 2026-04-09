@@ -1,0 +1,250 @@
+/**
+ * Type definitions for {{TYPE_NAME}}
+ *
+ * @description Central type definitions for type safety across the application
+ */
+
+/**
+ * Base entity interface
+ */
+export interface BaseEntity {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * API Response wrapper type
+ */
+export interface ApiResponse<T> {
+  data: T;
+  message?: string;
+  status: number;
+  errors?: ApiError[];
+}
+
+/**
+ * API Error structure
+ */
+export interface ApiError {
+  code: string;
+  message: string;
+  field?: string;
+  details?: Record<string, unknown>;
+}
+
+/**
+ * Pagination metadata
+ */
+export interface PaginationMeta {
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  totalItems: number;
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
+}
+
+/**
+ * Paginated response type
+ */
+export interface PaginatedResponse<T> {
+  data: T[];
+  meta: PaginationMeta;
+}
+
+/**
+ * Sort options
+ */
+export interface SortOptions {
+  field: string;
+  direction: 'asc' | 'desc';
+}
+
+/**
+ * Filter options
+ */
+export interface FilterOptions {
+  field: string;
+  operator: 'eq' | 'ne' | 'gt' | 'gte' | 'lt' | 'lte' | 'in' | 'contains';
+  value: unknown;
+}
+
+/**
+ * Query parameters
+ */
+export interface QueryParams {
+  page?: number;
+  pageSize?: number;
+  sort?: SortOptions[];
+  filters?: FilterOptions[];
+  search?: string;
+}
+
+/**
+ * {{TYPE_NAME}} main interface
+ */
+export interface {{TYPE_NAME}} extends BaseEntity {
+  // Add specific fields
+  name: string;
+  description?: string;
+  status: {{TYPE_NAME}}Status;
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * {{TYPE_NAME}} status enum
+ */
+export enum {{TYPE_NAME}}Status {
+  Active = 'active',
+  Inactive = 'inactive',
+  Pending = 'pending',
+  Archived = 'archived',
+}
+
+/**
+ * Create {{TYPE_NAME}} payload
+ */
+export interface Create{{TYPE_NAME}}Payload {
+  name: string;
+  description?: string;
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * Update {{TYPE_NAME}} payload
+ */
+export interface Update{{TYPE_NAME}}Payload {
+  name?: string;
+  description?: string;
+  status?: {{TYPE_NAME}}Status;
+  metadata?: Record<string, unknown>;
+}
+
+/**
+ * {{TYPE_NAME}} list item (simplified version for lists)
+ */
+export type {{TYPE_NAME}}ListItem = Pick<{{TYPE_NAME}}, 'id' | 'name' | 'status' | 'createdAt'>;
+
+/**
+ * Form state for {{TYPE_NAME}}
+ */
+export interface {{TYPE_NAME}}FormState {
+  data: Partial<{{TYPE_NAME}}>;
+  errors: Record<string, string>;
+  isSubmitting: boolean;
+  isDirty: boolean;
+}
+
+/**
+ * Utility Types
+ */
+
+/**
+ * Make specific properties optional
+ */
+export type Optional<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
+
+/**
+ * Make specific properties required
+ */
+export type Required<T, K extends keyof T> = T & Required<Pick<T, K>>;
+
+/**
+ * Deep partial type
+ */
+export type DeepPartial<T> = {
+  [P in keyof T]?: T[P] extends object ? DeepPartial<T[P]> : T[P];
+};
+
+/**
+ * Extract type from Promise
+ */
+export type Awaited<T> = T extends Promise<infer U> ? U : T;
+
+/**
+ * Extract array element type
+ */
+export type ArrayElement<T> = T extends (infer U)[] ? U : never;
+
+/**
+ * Type guard utilities
+ */
+
+/**
+ * Check if value is defined (not null or undefined)
+ */
+export function isDefined<T>(value: T | null | undefined): value is T {
+  return value !== null && value !== undefined;
+}
+
+/**
+ * Check if value is a valid {{TYPE_NAME}}
+ */
+export function is{{TYPE_NAME}}(value: unknown): value is {{TYPE_NAME}} {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'id' in value &&
+    'name' in value &&
+    'status' in value
+  );
+}
+
+/**
+ * Assert that value is defined
+ */
+export function assertDefined<T>(
+  value: T | null | undefined,
+  message?: string
+): asserts value is T {
+  if (!isDefined(value)) {
+    throw new Error(message || 'Value is not defined');
+  }
+}
+
+/**
+ * Narrow type by checking property
+ */
+export function hasProperty<T, K extends string>(
+  obj: T,
+  key: K
+): obj is T & Record<K, unknown> {
+  return typeof obj === 'object' && obj !== null && key in obj;
+}
+
+/**
+ * Constants
+ */
+export const {{TYPE_NAME}}_STATUS_LABELS: Record<{{TYPE_NAME}}Status, string> = {
+  [{{TYPE_NAME}}Status.Active]: 'Active',
+  [{{TYPE_NAME}}Status.Inactive]: 'Inactive',
+  [{{TYPE_NAME}}Status.Pending]: 'Pending',
+  [{{TYPE_NAME}}Status.Archived]: 'Archived',
+};
+
+/**
+ * Default values
+ */
+export const DEFAULT_{{TYPE_NAME}}: Partial<{{TYPE_NAME}}> = {
+  name: '',
+  description: '',
+  status: {{TYPE_NAME}}Status.Pending,
+  metadata: {},
+};
+
+/**
+ * Validation schemas (can be used with zod or yup)
+ */
+export const {{TYPE_NAME}}_VALIDATION = {
+  name: {
+    min: 3,
+    max: 100,
+    required: true,
+  },
+  description: {
+    min: 0,
+    max: 500,
+    required: false,
+  },
+};

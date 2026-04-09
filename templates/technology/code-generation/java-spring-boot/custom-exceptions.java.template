@@ -1,0 +1,217 @@
+package {{PACKAGE_NAME}}.exception;
+
+/**
+ * Custom business exception for application-specific errors.
+ *
+ * @author Generated
+ * @version 1.0
+ */
+public class BusinessException extends RuntimeException {
+
+    private static final long serialVersionUID = 1L;
+
+    /**
+     * Constructs a new BusinessException with the specified detail message.
+     *
+     * @param message the detail message
+     */
+    public BusinessException(String message) {
+        super(message);
+    }
+
+    /**
+     * Constructs a new BusinessException with the specified detail message and cause.
+     *
+     * @param message the detail message
+     * @param cause the cause
+     */
+    public BusinessException(String message, Throwable cause) {
+        super(message, cause);
+    }
+}
+
+/**
+ * Exception thrown when an entity is not found.
+ * Results in HTTP 404 response.
+ *
+ * @author Generated
+ * @version 1.0
+ */
+class EntityNotFoundException extends RuntimeException {
+
+    private static final long serialVersionUID = 1L;
+
+    /**
+     * Constructs a new EntityNotFoundException with the specified detail message.
+     *
+     * @param message the detail message
+     */
+    public EntityNotFoundException(String message) {
+        super(message);
+    }
+
+    /**
+     * Constructs a new EntityNotFoundException with the specified detail message and cause.
+     *
+     * @param message the detail message
+     * @param cause the cause
+     */
+    public EntityNotFoundException(String message, Throwable cause) {
+        super(message, cause);
+    }
+}
+
+/**
+ * Exception thrown when a duplicate entity is detected.
+ * Results in HTTP 409 response.
+ *
+ * @author Generated
+ * @version 1.0
+ */
+class DuplicateEntityException extends BusinessException {
+
+    private static final long serialVersionUID = 1L;
+
+    /**
+     * Constructs a new DuplicateEntityException with the specified detail message.
+     *
+     * @param message the detail message
+     */
+    public DuplicateEntityException(String message) {
+        super(message);
+    }
+
+    /**
+     * Constructs a new DuplicateEntityException with the specified detail message and cause.
+     *
+     * @param message the detail message
+     * @param cause the cause
+     */
+    public DuplicateEntityException(String message, Throwable cause) {
+        super(message, cause);
+    }
+}
+
+/**
+ * Exception thrown when a validation rule is violated.
+ * Results in HTTP 400 response.
+ *
+ * @author Generated
+ * @version 1.0
+ */
+class ValidationException extends BusinessException {
+
+    private static final long serialVersionUID = 1L;
+
+    /**
+     * Constructs a new ValidationException with the specified detail message.
+     *
+     * @param message the detail message
+     */
+    public ValidationException(String message) {
+        super(message);
+    }
+
+    /**
+     * Constructs a new ValidationException with the specified detail message and cause.
+     *
+     * @param message the detail message
+     * @param cause the cause
+     */
+    public ValidationException(String message, Throwable cause) {
+        super(message, cause);
+    }
+}
+
+/**
+ * Exception thrown when an invalid state transition is attempted.
+ * Results in HTTP 409 response.
+ *
+ * @author Generated
+ * @version 1.0
+ */
+class InvalidStateTransitionException extends BusinessException {
+
+    private static final long serialVersionUID = 1L;
+
+    /**
+     * Constructs a new InvalidStateTransitionException with the specified detail message.
+     *
+     * @param message the detail message
+     */
+    public InvalidStateTransitionException(String message) {
+        super(message);
+    }
+
+    /**
+     * Constructs a new InvalidStateTransitionException with the specified detail message and cause.
+     *
+     * @param message the detail message
+     * @param cause the cause
+     */
+    public InvalidStateTransitionException(String message, Throwable cause) {
+        super(message, cause);
+    }
+}
+
+/**
+ * Exception thrown when an operation is not permitted.
+ * Results in HTTP 403 response.
+ *
+ * @author Generated
+ * @version 1.0
+ */
+class OperationNotPermittedException extends BusinessException {
+
+    private static final long serialVersionUID = 1L;
+
+    /**
+     * Constructs a new OperationNotPermittedException with the specified detail message.
+     *
+     * @param message the detail message
+     */
+    public OperationNotPermittedException(String message) {
+        super(message);
+    }
+
+    /**
+     * Constructs a new OperationNotPermittedException with the specified detail message and cause.
+     *
+     * @param message the detail message
+     * @param cause the cause
+     */
+    public OperationNotPermittedException(String message, Throwable cause) {
+        super(message, cause);
+    }
+}
+
+/**
+ * Exception thrown when a resource conflict is detected.
+ * Results in HTTP 409 response.
+ *
+ * @author Generated
+ * @version 1.0
+ */
+class ResourceConflictException extends BusinessException {
+
+    private static final long serialVersionUID = 1L;
+
+    /**
+     * Constructs a new ResourceConflictException with the specified detail message.
+     *
+     * @param message the detail message
+     */
+    public ResourceConflictException(String message) {
+        super(message);
+    }
+
+    /**
+     * Constructs a new ResourceConflictException with the specified detail message and cause.
+     *
+     * @param message the detail message
+     * @param cause the cause
+     */
+    public ResourceConflictException(String message, Throwable cause) {
+        super(message, cause);
+    }
+}

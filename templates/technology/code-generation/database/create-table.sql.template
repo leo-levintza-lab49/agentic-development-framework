@@ -1,0 +1,52 @@
+-- Template: SQL DDL - Create Table
+-- Description: Standard PostgreSQL CREATE TABLE statement with common patterns
+-- Variables: {{TABLE_NAME}}, {{COLUMNS}}, {{DESCRIPTION}}
+
+-- Table: {{TABLE_NAME}}
+-- Description: {{DESCRIPTION}}
+
+CREATE TABLE IF NOT EXISTS {{TABLE_NAME}} (
+    -- Primary Key
+    id BIGSERIAL PRIMARY KEY,
+
+    -- Custom Columns
+    {{COLUMNS}}
+
+    -- Audit Timestamps
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    deleted_at TIMESTAMP WITH TIME ZONE,
+
+    -- Audit Fields
+    created_by VARCHAR(255),
+    updated_by VARCHAR(255)
+);
+
+-- Add table comment
+COMMENT ON TABLE {{TABLE_NAME}} IS '{{DESCRIPTION}}';
+
+-- Add column comments (example)
+-- COMMENT ON COLUMN {{TABLE_NAME}}.column_name IS 'Column description';
+
+-- Create updated_at trigger function if not exists
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+-- Create trigger to automatically update updated_at
+DROP TRIGGER IF EXISTS update_{{TABLE_NAME}}_updated_at ON {{TABLE_NAME}};
+CREATE TRIGGER update_{{TABLE_NAME}}_updated_at
+    BEFORE UPDATE ON {{TABLE_NAME}}
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Create standard indexes
+CREATE INDEX IF NOT EXISTS idx_{{TABLE_NAME}}_created_at ON {{TABLE_NAME}}(created_at);
+CREATE INDEX IF NOT EXISTS idx_{{TABLE_NAME}}_updated_at ON {{TABLE_NAME}}(updated_at);
+
+-- Soft delete support index
+CREATE INDEX IF NOT EXISTS idx_{{TABLE_NAME}}_deleted_at ON {{TABLE_NAME}}(deleted_at) WHERE deleted_at IS NULL;

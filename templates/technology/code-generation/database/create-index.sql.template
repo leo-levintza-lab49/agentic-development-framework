@@ -1,0 +1,180 @@
+-- Template: Create Index
+-- Description: Create database indexes for query performance optimization
+-- Variables: {{INDEX_NAME}}, {{TABLE_NAME}}, {{COLUMNS}}, {{INDEX_TYPE}}
+
+-- Index: {{INDEX_NAME}}
+-- Table: {{TABLE_NAME}}
+-- Description: {{DESCRIPTION}}
+-- Estimated Impact: {{IMPACT_DESCRIPTION}}
+
+-- ============================================
+-- PRE-INDEX ANALYSIS
+-- ============================================
+
+-- Check current table statistics
+SELECT
+    schemaname,
+    tablename,
+    pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) AS total_size,
+    pg_size_pretty(pg_relation_size(schemaname||'.'||tablename)) AS table_size,
+    pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename) - pg_relation_size(schemaname||'.'||tablename)) AS index_size
+FROM pg_tables
+WHERE tablename = '{{TABLE_NAME}}';
+
+-- Check if index already exists
+SELECT indexname, indexdef
+FROM pg_indexes
+WHERE tablename = '{{TABLE_NAME}}'
+  AND indexname = '{{INDEX_NAME}}';
+
+-- ============================================
+-- INDEX CREATION
+-- ============================================
+
+-- Standard B-tree index (default)
+CREATE INDEX CONCURRENTLY IF NOT EXISTS {{INDEX_NAME}}
+ON {{TABLE_NAME}} ({{COLUMNS}});
+
+-- Composite index (multiple columns)
+-- CREATE INDEX CONCURRENTLY IF NOT EXISTS {{INDEX_NAME}}
+-- ON {{TABLE_NAME}} (column1, column2, column3);
+
+-- Partial index (with WHERE clause for filtered queries)
+-- CREATE INDEX CONCURRENTLY IF NOT EXISTS {{INDEX_NAME}}
+-- ON {{TABLE_NAME}} ({{COLUMNS}})
+-- WHERE condition = true AND deleted_at IS NULL;
+
+-- Unique index
+-- CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS {{INDEX_NAME}}
+-- ON {{TABLE_NAME}} ({{COLUMNS}});
+
+-- Expression index (for computed values)
+-- CREATE INDEX CONCURRENTLY IF NOT EXISTS {{INDEX_NAME}}
+-- ON {{TABLE_NAME}} (LOWER(email));
+
+-- GIN index (for full-text search, arrays, JSONB)
+-- CREATE INDEX CONCURRENTLY IF NOT EXISTS {{INDEX_NAME}}
+-- ON {{TABLE_NAME}} USING GIN (jsonb_column);
+
+-- GiST index (for geometric data, full-text search)
+-- CREATE INDEX CONCURRENTLY IF NOT EXISTS {{INDEX_NAME}}
+-- ON {{TABLE_NAME}} USING GIST (geometry_column);
+
+-- BRIN index (for very large tables with natural ordering)
+-- CREATE INDEX CONCURRENTLY IF NOT EXISTS {{INDEX_NAME}}
+-- ON {{TABLE_NAME}} USING BRIN (timestamp_column);
+
+-- Hash index (for simple equality comparisons)
+-- CREATE INDEX CONCURRENTLY IF NOT EXISTS {{INDEX_NAME}}
+-- ON {{TABLE_NAME}} USING HASH (status);
+
+-- Covering index (INCLUDE clause - PostgreSQL 11+)
+-- CREATE INDEX CONCURRENTLY IF NOT EXISTS {{INDEX_NAME}}
+-- ON {{TABLE_NAME}} (indexed_column)
+-- INCLUDE (additional_column1, additional_column2);
+
+-- ============================================
+-- INDEX WITH ADVANCED OPTIONS
+-- ============================================
+
+-- Descending order index (for ORDER BY DESC queries)
+-- CREATE INDEX CONCURRENTLY IF NOT EXISTS {{INDEX_NAME}}
+-- ON {{TABLE_NAME}} (created_at DESC);
+
+-- Multi-column with mixed sort order
+-- CREATE INDEX CONCURRENTLY IF NOT EXISTS {{INDEX_NAME}}
+-- ON {{TABLE_NAME}} (category ASC, created_at DESC);
+
+-- Case-insensitive index
+-- CREATE INDEX CONCURRENTLY IF NOT EXISTS {{INDEX_NAME}}
+-- ON {{TABLE_NAME}} (LOWER(name) text_pattern_ops);
+
+-- JSONB path index
+-- CREATE INDEX CONCURRENTLY IF NOT EXISTS {{INDEX_NAME}}
+-- ON {{TABLE_NAME}} USING GIN ((data->'attributes'));
+
+-- Array index
+-- CREATE INDEX CONCURRENTLY IF NOT EXISTS {{INDEX_NAME}}
+-- ON {{TABLE_NAME}} USING GIN (tags);
+
+-- ============================================
+-- POST-INDEX ANALYSIS
+-- ============================================
+
+-- Verify index was created
+SELECT
+    schemaname,
+    tablename,
+    indexname,
+    indexdef
+FROM pg_indexes
+WHERE tablename = '{{TABLE_NAME}}'
+  AND indexname = '{{INDEX_NAME}}';
+
+-- Check index size
+SELECT
+    pg_size_pretty(pg_relation_size('{{INDEX_NAME}}')) AS index_size;
+
+-- Analyze table to update statistics
+ANALYZE {{TABLE_NAME}};
+
+-- ============================================
+-- INDEX USAGE MONITORING
+-- ============================================
+
+-- Query to monitor index usage over time
+-- SELECT
+--     schemaname,
+--     tablename,
+--     indexname,
+--     idx_scan as index_scans,
+--     idx_tup_read as tuples_read,
+--     idx_tup_fetch as tuples_fetched
+-- FROM pg_stat_user_indexes
+-- WHERE indexname = '{{INDEX_NAME}}';
+
+-- ============================================
+-- ROLLBACK (if needed)
+-- ============================================
+
+-- To drop the index:
+-- DROP INDEX CONCURRENTLY IF EXISTS {{INDEX_NAME}};
+
+-- ============================================
+-- COMMON INDEX PATTERNS
+-- ============================================
+
+-- Pattern 1: Foreign key index
+-- CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_{{TABLE_NAME}}_foreign_key_id
+-- ON {{TABLE_NAME}} (foreign_key_id);
+
+-- Pattern 2: Status + timestamp index (common query pattern)
+-- CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_{{TABLE_NAME}}_status_created_at
+-- ON {{TABLE_NAME}} (status, created_at DESC)
+-- WHERE deleted_at IS NULL;
+
+-- Pattern 3: Partial unique index (for conditional uniqueness)
+-- CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS idx_{{TABLE_NAME}}_unique_active
+-- ON {{TABLE_NAME}} (email)
+-- WHERE deleted_at IS NULL;
+
+-- Pattern 4: Full-text search index
+-- CREATE INDEX CONCURRENTLY IF NOT EXISTS idx_{{TABLE_NAME}}_fulltext
+-- ON {{TABLE_NAME}} USING GIN (to_tsvector('english', name || ' ' || description));
+
+-- ============================================
+-- NOTES
+-- ============================================
+
+-- CONCURRENTLY option:
+--   - Allows index creation without blocking writes
+--   - Takes longer but safer for production
+--   - Cannot run inside a transaction block
+--   - Recommended for large tables in production
+
+-- Index maintenance:
+--   - Run REINDEX CONCURRENTLY periodically for heavily updated indexes
+--   - Monitor index bloat with pg_stat_user_indexes
+--   - Consider dropping unused indexes (idx_scan = 0)
+
+COMMENT ON INDEX {{INDEX_NAME}} IS '{{DESCRIPTION}}';

@@ -1,0 +1,198 @@
+/**
+ * Custom API Error class for standardized error handling
+ */
+export class ApiError extends Error {
+  public readonly statusCode: number;
+  public readonly isOperational: boolean;
+  public readonly details?: any;
+
+  constructor(
+    statusCode: number,
+    message: string,
+    details?: any,
+    isOperational: boolean = true
+  ) {
+    super(message);
+
+    // Maintains proper stack trace for where error was thrown
+    Object.setPrototypeOf(this, ApiError.prototype);
+    Error.captureStackTrace(this, this.constructor);
+
+    this.name = this.constructor.name;
+    this.statusCode = statusCode;
+    this.isOperational = isOperational;
+    this.details = details;
+  }
+
+  /**
+   * Create a 400 Bad Request error
+   */
+  static badRequest(message: string = 'Bad Request', details?: any): ApiError {
+    return new ApiError(400, message, details);
+  }
+
+  /**
+   * Create a 401 Unauthorized error
+   */
+  static unauthorized(message: string = 'Unauthorized', details?: any): ApiError {
+    return new ApiError(401, message, details);
+  }
+
+  /**
+   * Create a 403 Forbidden error
+   */
+  static forbidden(message: string = 'Forbidden', details?: any): ApiError {
+    return new ApiError(403, message, details);
+  }
+
+  /**
+   * Create a 404 Not Found error
+   */
+  static notFound(message: string = 'Not Found', details?: any): ApiError {
+    return new ApiError(404, message, details);
+  }
+
+  /**
+   * Create a 409 Conflict error
+   */
+  static conflict(message: string = 'Conflict', details?: any): ApiError {
+    return new ApiError(409, message, details);
+  }
+
+  /**
+   * Create a 422 Unprocessable Entity error
+   */
+  static unprocessableEntity(message: string = 'Unprocessable Entity', details?: any): ApiError {
+    return new ApiError(422, message, details);
+  }
+
+  /**
+   * Create a 429 Too Many Requests error
+   */
+  static tooManyRequests(message: string = 'Too Many Requests', details?: any): ApiError {
+    return new ApiError(429, message, details);
+  }
+
+  /**
+   * Create a 500 Internal Server Error
+   */
+  static internal(message: string = 'Internal Server Error', details?: any): ApiError {
+    return new ApiError(500, message, details, false);
+  }
+
+  /**
+   * Create a 503 Service Unavailable error
+   */
+  static serviceUnavailable(message: string = 'Service Unavailable', details?: any): ApiError {
+    return new ApiError(503, message, details);
+  }
+
+  /**
+   * Convert to JSON representation
+   */
+  toJSON(): Record<string, any> {
+    return {
+      name: this.name,
+      message: this.message,
+      statusCode: this.statusCode,
+      ...(this.details && { details: this.details }),
+      ...(process.env.NODE_ENV === 'development' && { stack: this.stack })
+    };
+  }
+}
+
+/**
+ * Validation Error class
+ */
+export class ValidationError extends ApiError {
+  constructor(message: string = 'Validation Error', errors: any[] = []) {
+    super(400, message, { errors }, true);
+    this.name = 'ValidationError';
+  }
+}
+
+/**
+ * Database Error class
+ */
+export class DatabaseError extends ApiError {
+  constructor(message: string = 'Database Error', details?: any) {
+    super(500, message, details, false);
+    this.name = 'DatabaseError';
+  }
+}
+
+/**
+ * External Service Error class
+ */
+export class ExternalServiceError extends ApiError {
+  public readonly serviceName: string;
+
+  constructor(serviceName: string, message: string = 'External Service Error', details?: any) {
+    super(502, message, details, true);
+    this.name = 'ExternalServiceError';
+    this.serviceName = serviceName;
+  }
+}
+
+/**
+ * Authentication Error class
+ */
+export class AuthenticationError extends ApiError {
+  constructor(message: string = 'Authentication Failed', details?: any) {
+    super(401, message, details, true);
+    this.name = 'AuthenticationError';
+  }
+}
+
+/**
+ * Authorization Error class
+ */
+export class AuthorizationError extends ApiError {
+  constructor(message: string = 'Insufficient Permissions', details?: any) {
+    super(403, message, details, true);
+    this.name = 'AuthorizationError';
+  }
+}
+
+/**
+ * Rate Limit Error class
+ */
+export class RateLimitError extends ApiError {
+  public readonly retryAfter: number;
+
+  constructor(retryAfter: number, message: string = 'Rate Limit Exceeded') {
+    super(429, message, { retryAfter }, true);
+    this.name = 'RateLimitError';
+    this.retryAfter = retryAfter;
+  }
+}
+
+/**
+ * Check if error is operational (expected) or programming error
+ */
+export function isOperationalError(error: Error): boolean {
+  if (error instanceof ApiError) {
+    return error.isOperational;
+  }
+  return false;
+}
+
+/**
+ * Error handler helper
+ */
+export function handleError(error: Error): { statusCode: number; message: string; details?: any } {
+  if (error instanceof ApiError) {
+    return {
+      statusCode: error.statusCode,
+      message: error.message,
+      details: error.details
+    };
+  }
+
+  // Unknown error - return 500
+  return {
+    statusCode: 500,
+    message: 'Internal Server Error',
+    details: process.env.NODE_ENV === 'development' ? { originalError: error.message } : undefined
+  };
+}

@@ -1,0 +1,409 @@
+package {{PACKAGE_NAME}}.controller;
+
+import {{PACKAGE_NAME}}.dto.{{ENTITY_NAME}}Request;
+import {{PACKAGE_NAME}}.dto.{{ENTITY_NAME}}Response;
+import {{PACKAGE_NAME}}.exception.EntityNotFoundException;
+import {{PACKAGE_NAME}}.service.{{SERVICE_NAME}};
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.MediaType;
+import org.springframework.security.test.context.support.WithMockUser;
+import org.springframework.test.web.servlet.MockMvc;
+
+import java.time.LocalDateTime;
+import java.util.Arrays;
+import java.util.List;
+
+import static org.hamcrest.Matchers.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+/**
+ * Integration tests for {{CONTROLLER_NAME}}.
+ * Tests controller layer endpoints with mocked service.
+ *
+ * @author Generated
+ * @version 1.0
+ */
+@WebMvcTest({{CONTROLLER_NAME}}.class)
+@DisplayName("{{CONTROLLER_NAME}} Integration Tests")
+class {{TEST_CLASS}} {
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @MockBean
+    private {{SERVICE_NAME}} service;
+
+    private {{ENTITY_NAME}}Request request;
+    private {{ENTITY_NAME}}Response response;
+    private Long entityId;
+
+    @BeforeEach
+    void setUp() {
+        entityId = 1L;
+
+        // Initialize test data
+        request = {{ENTITY_NAME}}Request.builder()
+                // Add request-specific fields here
+                .build();
+
+        response = {{ENTITY_NAME}}Response.builder()
+                .id(entityId)
+                .createdAt(LocalDateTime.now())
+                .updatedAt(LocalDateTime.now())
+                .deleted(false)
+                // Add response-specific fields here
+                .build();
+    }
+
+    @Test
+    @DisplayName("POST {{BASE_PATH}} - Should create {{ENTITY_NAME}} successfully")
+    @WithMockUser(authorities = "{{ENTITY_NAME}}_CREATE")
+    void testCreate_Success() throws Exception {
+        // Given
+        when(service.create(any({{ENTITY_NAME}}Request.class))).thenReturn(response);
+
+        // When/Then
+        mockMvc.perform(post("{{BASE_PATH}}")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andDo(print())
+                .andExpect(status().isCreated())
+                .andExpect(header().string("Location", containsString("{{BASE_PATH}}/" + entityId)))
+                .andExpect(jsonPath("$.id").value(entityId))
+                .andExpect(jsonPath("$.deleted").value(false));
+
+        verify(service).create(any({{ENTITY_NAME}}Request.class));
+    }
+
+    @Test
+    @DisplayName("POST {{BASE_PATH}} - Should return 400 for invalid request")
+    @WithMockUser(authorities = "{{ENTITY_NAME}}_CREATE")
+    void testCreate_InvalidRequest() throws Exception {
+        // Given
+        {{ENTITY_NAME}}Request invalidRequest = {{ENTITY_NAME}}Request.builder().build();
+
+        // When/Then
+        mockMvc.perform(post("{{BASE_PATH}}")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidRequest)))
+                .andDo(print())
+                .andExpect(status().isBadRequest());
+
+        verify(service, never()).create(any());
+    }
+
+    @Test
+    @DisplayName("POST {{BASE_PATH}} - Should return 403 without proper authority")
+    @WithMockUser(authorities = "OTHER_AUTHORITY")
+    void testCreate_Forbidden() throws Exception {
+        // When/Then
+        mockMvc.perform(post("{{BASE_PATH}}")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andDo(print())
+                .andExpect(status().isForbidden());
+
+        verify(service, never()).create(any());
+    }
+
+    @Test
+    @DisplayName("GET {{BASE_PATH}}/{id} - Should get {{ENTITY_NAME}} by ID successfully")
+    @WithMockUser(authorities = "{{ENTITY_NAME}}_READ")
+    void testFindById_Success() throws Exception {
+        // Given
+        when(service.findById(entityId)).thenReturn(response);
+
+        // When/Then
+        mockMvc.perform(get("{{BASE_PATH}}/{id}", entityId)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(entityId))
+                .andExpect(jsonPath("$.deleted").value(false));
+
+        verify(service).findById(entityId);
+    }
+
+    @Test
+    @DisplayName("GET {{BASE_PATH}}/{id} - Should return 404 when entity not found")
+    @WithMockUser(authorities = "{{ENTITY_NAME}}_READ")
+    void testFindById_NotFound() throws Exception {
+        // Given
+        when(service.findById(entityId))
+                .thenThrow(new EntityNotFoundException("{{ENTITY_NAME}} not found with id: " + entityId));
+
+        // When/Then
+        mockMvc.perform(get("{{BASE_PATH}}/{id}", entityId)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                .andExpect(status().isNotFound());
+
+        verify(service).findById(entityId);
+    }
+
+    @Test
+    @DisplayName("GET {{BASE_PATH}} - Should get all {{ENTITY_NAME}} entities with pagination")
+    @WithMockUser(authorities = "{{ENTITY_NAME}}_READ")
+    void testFindAll_Success() throws Exception {
+        // Given
+        List<{{ENTITY_NAME}}Response> responses = Arrays.asList(response);
+        Page<{{ENTITY_NAME}}Response> page = new PageImpl<>(responses, PageRequest.of(0, 20), 1);
+        when(service.findAllActive(any(Pageable.class))).thenReturn(page);
+
+        // When/Then
+        mockMvc.perform(get("{{BASE_PATH}}")
+                        .param("page", "0")
+                        .param("size", "20")
+                        .param("sort", "createdAt,desc")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", hasSize(1)))
+                .andExpect(jsonPath("$.content[0].id").value(entityId))
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.size").value(20))
+                .andExpect(jsonPath("$.number").value(0));
+
+        verify(service).findAllActive(any(Pageable.class));
+    }
+
+    @Test
+    @DisplayName("PUT {{BASE_PATH}}/{id} - Should update {{ENTITY_NAME}} successfully")
+    @WithMockUser(authorities = "{{ENTITY_NAME}}_UPDATE")
+    void testUpdate_Success() throws Exception {
+        // Given
+        when(service.update(eq(entityId), any({{ENTITY_NAME}}Request.class))).thenReturn(response);
+
+        // When/Then
+        mockMvc.perform(put("{{BASE_PATH}}/{id}", entityId)
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(entityId));
+
+        verify(service).update(eq(entityId), any({{ENTITY_NAME}}Request.class));
+    }
+
+    @Test
+    @DisplayName("PUT {{BASE_PATH}}/{id} - Should return 404 when updating non-existent entity")
+    @WithMockUser(authorities = "{{ENTITY_NAME}}_UPDATE")
+    void testUpdate_NotFound() throws Exception {
+        // Given
+        when(service.update(eq(entityId), any({{ENTITY_NAME}}Request.class)))
+                .thenThrow(new EntityNotFoundException("{{ENTITY_NAME}} not found with id: " + entityId));
+
+        // When/Then
+        mockMvc.perform(put("{{BASE_PATH}}/{id}", entityId)
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andDo(print())
+                .andExpect(status().isNotFound());
+
+        verify(service).update(eq(entityId), any({{ENTITY_NAME}}Request.class));
+    }
+
+    @Test
+    @DisplayName("PATCH {{BASE_PATH}}/{id} - Should partially update {{ENTITY_NAME}} successfully")
+    @WithMockUser(authorities = "{{ENTITY_NAME}}_UPDATE")
+    void testPartialUpdate_Success() throws Exception {
+        // Given
+        when(service.partialUpdate(eq(entityId), any({{ENTITY_NAME}}Request.class))).thenReturn(response);
+
+        // When/Then
+        mockMvc.perform(patch("{{BASE_PATH}}/{id}", entityId)
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(entityId));
+
+        verify(service).partialUpdate(eq(entityId), any({{ENTITY_NAME}}Request.class));
+    }
+
+    @Test
+    @DisplayName("DELETE {{BASE_PATH}}/{id} - Should delete {{ENTITY_NAME}} successfully")
+    @WithMockUser(authorities = "{{ENTITY_NAME}}_DELETE")
+    void testDelete_Success() throws Exception {
+        // Given
+        doNothing().when(service).delete(entityId);
+
+        // When/Then
+        mockMvc.perform(delete("{{BASE_PATH}}/{id}", entityId)
+                        .with(csrf()))
+                .andDo(print())
+                .andExpect(status().isNoContent());
+
+        verify(service).delete(entityId);
+    }
+
+    @Test
+    @DisplayName("DELETE {{BASE_PATH}}/{id} - Should return 404 when deleting non-existent entity")
+    @WithMockUser(authorities = "{{ENTITY_NAME}}_DELETE")
+    void testDelete_NotFound() throws Exception {
+        // Given
+        doThrow(new EntityNotFoundException("{{ENTITY_NAME}} not found with id: " + entityId))
+                .when(service).delete(entityId);
+
+        // When/Then
+        mockMvc.perform(delete("{{BASE_PATH}}/{id}", entityId)
+                        .with(csrf()))
+                .andDo(print())
+                .andExpect(status().isNotFound());
+
+        verify(service).delete(entityId);
+    }
+
+    @Test
+    @DisplayName("POST {{BASE_PATH}}/{id}/restore - Should restore {{ENTITY_NAME}} successfully")
+    @WithMockUser(authorities = "{{ENTITY_NAME}}_UPDATE")
+    void testRestore_Success() throws Exception {
+        // Given
+        when(service.restore(entityId)).thenReturn(response);
+
+        // When/Then
+        mockMvc.perform(post("{{BASE_PATH}}/{id}/restore", entityId)
+                        .with(csrf()))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(entityId));
+
+        verify(service).restore(entityId);
+    }
+
+    @Test
+    @DisplayName("GET {{BASE_PATH}}/{id}/exists - Should check existence successfully")
+    @WithMockUser(authorities = "{{ENTITY_NAME}}_READ")
+    void testExists_Found() throws Exception {
+        // Given
+        when(service.exists(entityId)).thenReturn(true);
+
+        // When/Then
+        mockMvc.perform(get("{{BASE_PATH}}/{id}/exists", entityId)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                .andExpect(status().isOk());
+
+        verify(service).exists(entityId);
+    }
+
+    @Test
+    @DisplayName("GET {{BASE_PATH}}/{id}/exists - Should return 404 when not found")
+    @WithMockUser(authorities = "{{ENTITY_NAME}}_READ")
+    void testExists_NotFound() throws Exception {
+        // Given
+        when(service.exists(entityId)).thenReturn(false);
+
+        // When/Then
+        mockMvc.perform(get("{{BASE_PATH}}/{id}/exists", entityId)
+                        .accept(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                .andExpect(status().isNotFound());
+
+        verify(service).exists(entityId);
+    }
+
+    @Test
+    @DisplayName("GET {{BASE_PATH}}/count - Should count entities successfully")
+    @WithMockUser(authorities = "{{ENTITY_NAME}}_READ")
+    void testCount_Success() throws Exception {
+        // Given
+        long expectedCount = 42L;
+        when(service.countActive()).thenReturn(expectedCount);
+
+        // When/Then
+        mockMvc.perform(get("{{BASE_PATH}}/count")
+                        .accept(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(content().string(String.valueOf(expectedCount)));
+
+        verify(service).countActive();
+    }
+
+    @Test
+    @DisplayName("GET {{BASE_PATH}}/created-after - Should find entities created after date")
+    @WithMockUser(authorities = "{{ENTITY_NAME}}_READ")
+    void testFindCreatedAfter_Success() throws Exception {
+        // Given
+        LocalDateTime date = LocalDateTime.now().minusDays(7);
+        List<{{ENTITY_NAME}}Response> responses = Arrays.asList(response);
+        Page<{{ENTITY_NAME}}Response> page = new PageImpl<>(responses, PageRequest.of(0, 20), 1);
+        when(service.findCreatedAfter(any(LocalDateTime.class), any(Pageable.class))).thenReturn(page);
+
+        // When/Then
+        mockMvc.perform(get("{{BASE_PATH}}/created-after")
+                        .param("date", date.toString())
+                        .accept(MediaType.APPLICATION_JSON))
+                .andDo(print())
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", hasSize(1)));
+
+        verify(service).findCreatedAfter(any(LocalDateTime.class), any(Pageable.class));
+    }
+
+    @Test
+    @DisplayName("POST {{BASE_PATH}}/bulk - Should bulk create entities successfully")
+    @WithMockUser(authorities = "{{ENTITY_NAME}}_CREATE")
+    void testBulkCreate_Success() throws Exception {
+        // Given
+        List<{{ENTITY_NAME}}Request> requests = Arrays.asList(request, request);
+        List<{{ENTITY_NAME}}Response> responses = Arrays.asList(response, response);
+        when(service.bulkCreate(anyList())).thenReturn(responses);
+
+        // When/Then
+        mockMvc.perform(post("{{BASE_PATH}}/bulk")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(requests)))
+                .andDo(print())
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$", hasSize(2)));
+
+        verify(service).bulkCreate(anyList());
+    }
+
+    @Test
+    @DisplayName("DELETE {{BASE_PATH}}/bulk - Should bulk delete entities successfully")
+    @WithMockUser(authorities = "{{ENTITY_NAME}}_DELETE")
+    void testBulkDelete_Success() throws Exception {
+        // Given
+        List<Long> ids = Arrays.asList(1L, 2L, 3L);
+        doNothing().when(service).bulkDelete(anyList());
+
+        // When/Then
+        mockMvc.perform(delete("{{BASE_PATH}}/bulk")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(ids)))
+                .andDo(print())
+                .andExpect(status().isNoContent());
+
+        verify(service).bulkDelete(anyList());
+    }
+}

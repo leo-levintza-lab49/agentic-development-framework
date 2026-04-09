@@ -1,0 +1,481 @@
+# Terraform Variables Template
+# Description: Comprehensive input variables for Terraform configurations
+# Placeholders: {{VAR_NAME}}, {{VAR_TYPE}}, {{VAR_DEFAULT}}, {{VAR_DESCRIPTION}}
+
+# ============================================================================
+# COMMON VARIABLES
+# ============================================================================
+
+variable "project_name" {
+  description = "Name of the project"
+  type        = string
+  default     = "{{PROJECT_NAME}}"
+
+  validation {
+    condition     = length(var.project_name) > 0 && length(var.project_name) <= 50
+    error_message = "Project name must be between 1 and 50 characters."
+  }
+}
+
+variable "environment" {
+  description = "Environment name (e.g., dev, staging, prod)"
+  type        = string
+  default     = "{{ENVIRONMENT}}"
+
+  validation {
+    condition     = contains(["dev", "staging", "prod", "test"], var.environment)
+    error_message = "Environment must be one of: dev, staging, prod, test."
+  }
+}
+
+variable "region" {
+  description = "AWS region where resources will be created"
+  type        = string
+  default     = "{{REGION}}" # e.g., "us-east-1"
+}
+
+variable "tags" {
+  description = "Common tags to apply to all resources"
+  type        = map(string)
+  default = {
+    Environment = "{{ENVIRONMENT}}"
+    Project     = "{{PROJECT_NAME}}"
+    ManagedBy   = "terraform"
+  }
+}
+
+# ============================================================================
+# STRING VARIABLES
+# ============================================================================
+
+variable "string_example" {
+  description = "{{VAR_DESCRIPTION}}" # e.g., "Name of the S3 bucket"
+  type        = string
+  default     = "{{VAR_DEFAULT}}"
+
+  validation {
+    condition     = can(regex("^[a-z0-9-]+$", var.string_example))
+    error_message = "String must contain only lowercase letters, numbers, and hyphens."
+  }
+}
+
+variable "string_sensitive" {
+  description = "Sensitive string variable"
+  type        = string
+  sensitive   = true
+  default     = null # No default for sensitive values
+}
+
+# ============================================================================
+# NUMBER VARIABLES
+# ============================================================================
+
+variable "instance_count" {
+  description = "Number of instances to create"
+  type        = number
+  default     = {{DEFAULT_COUNT}} # e.g., 2
+
+  validation {
+    condition     = var.instance_count >= 1 && var.instance_count <= 10
+    error_message = "Instance count must be between 1 and 10."
+  }
+}
+
+variable "port" {
+  description = "Port number for the application"
+  type        = number
+  default     = {{DEFAULT_PORT}} # e.g., 8080
+
+  validation {
+    condition     = var.port >= 1 && var.port <= 65535
+    error_message = "Port must be between 1 and 65535."
+  }
+}
+
+# ============================================================================
+# BOOLEAN VARIABLES
+# ============================================================================
+
+variable "enable_monitoring" {
+  description = "Enable monitoring for resources"
+  type        = bool
+  default     = true
+}
+
+variable "multi_az" {
+  description = "Enable Multi-AZ deployment"
+  type        = bool
+  default     = {{MULTI_AZ}} # e.g., true for production
+}
+
+variable "enable_deletion_protection" {
+  description = "Enable deletion protection"
+  type        = bool
+  default     = {{DELETION_PROTECTION}} # e.g., true for production
+}
+
+# ============================================================================
+# LIST VARIABLES
+# ============================================================================
+
+variable "availability_zones" {
+  description = "List of availability zones"
+  type        = list(string)
+  default     = ["{{AZ1}}", "{{AZ2}}", "{{AZ3}}"] # e.g., ["us-east-1a", "us-east-1b", "us-east-1c"]
+}
+
+variable "subnet_ids" {
+  description = "List of subnet IDs"
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition     = length(var.subnet_ids) >= 2
+    error_message = "At least 2 subnet IDs are required for high availability."
+  }
+}
+
+variable "allowed_cidr_blocks" {
+  description = "List of CIDR blocks allowed to access the resource"
+  type        = list(string)
+  default     = ["10.0.0.0/16"]
+
+  validation {
+    condition = alltrue([
+      for cidr in var.allowed_cidr_blocks : can(cidrhost(cidr, 0))
+    ])
+    error_message = "All values must be valid CIDR blocks."
+  }
+}
+
+# ============================================================================
+# MAP VARIABLES
+# ============================================================================
+
+variable "instance_types" {
+  description = "Map of instance types by environment"
+  type        = map(string)
+  default = {
+    dev     = "t3.micro"
+    staging = "t3.small"
+    prod    = "t3.medium"
+  }
+}
+
+variable "additional_tags" {
+  description = "Additional tags to apply to resources"
+  type        = map(string)
+  default     = {}
+}
+
+# ============================================================================
+# OBJECT VARIABLES
+# ============================================================================
+
+variable "vpc_config" {
+  description = "VPC configuration object"
+  type = object({
+    cidr_block           = string
+    enable_dns_hostnames = bool
+    enable_dns_support   = bool
+    enable_nat_gateway   = bool
+  })
+  default = {
+    cidr_block           = "10.0.0.0/16"
+    enable_dns_hostnames = true
+    enable_dns_support   = true
+    enable_nat_gateway   = true
+  }
+}
+
+variable "database_config" {
+  description = "Database configuration"
+  type = object({
+    engine               = string
+    engine_version       = string
+    instance_class       = string
+    allocated_storage    = number
+    multi_az             = bool
+    backup_retention_period = number
+  })
+  default = {
+    engine               = "postgres"
+    engine_version       = "15.4"
+    instance_class       = "db.t3.medium"
+    allocated_storage    = 100
+    multi_az             = true
+    backup_retention_period = 7
+  }
+}
+
+# ============================================================================
+# LIST OF OBJECTS VARIABLES
+# ============================================================================
+
+variable "security_group_rules" {
+  description = "List of security group rules"
+  type = list(object({
+    type        = string
+    from_port   = number
+    to_port     = number
+    protocol    = string
+    cidr_blocks = list(string)
+    description = string
+  }))
+  default = [
+    {
+      type        = "ingress"
+      from_port   = 443
+      to_port     = 443
+      protocol    = "tcp"
+      cidr_blocks = ["0.0.0.0/0"]
+      description = "Allow HTTPS traffic"
+    },
+    {
+      type        = "ingress"
+      from_port   = 80
+      to_port     = 80
+      protocol    = "tcp"
+      cidr_blocks = ["0.0.0.0/0"]
+      description = "Allow HTTP traffic"
+    }
+  ]
+}
+
+variable "target_groups" {
+  description = "List of target group configurations"
+  type = list(object({
+    name     = string
+    port     = number
+    protocol = string
+    health_check = object({
+      path                = string
+      healthy_threshold   = number
+      unhealthy_threshold = number
+      timeout             = number
+      interval            = number
+    })
+  }))
+  default = []
+}
+
+# ============================================================================
+# MAP OF OBJECTS VARIABLES
+# ============================================================================
+
+variable "applications" {
+  description = "Map of application configurations"
+  type = map(object({
+    instance_type = string
+    instance_count = number
+    disk_size = number
+    enable_monitoring = bool
+  }))
+  default = {
+    "app1" = {
+      instance_type     = "t3.medium"
+      instance_count    = 2
+      disk_size         = 50
+      enable_monitoring = true
+    }
+    "app2" = {
+      instance_type     = "t3.small"
+      instance_count    = 1
+      disk_size         = 30
+      enable_monitoring = false
+    }
+  }
+}
+
+# ============================================================================
+# NULLABLE VARIABLES
+# ============================================================================
+
+variable "kms_key_id" {
+  description = "KMS key ID for encryption (null to create new key)"
+  type        = string
+  default     = null
+  nullable    = true
+}
+
+variable "vpc_id" {
+  description = "Existing VPC ID (null to create new VPC)"
+  type        = string
+  default     = null
+  nullable    = true
+}
+
+# ============================================================================
+# COMPLEX NESTED OBJECTS
+# ============================================================================
+
+variable "eks_config" {
+  description = "EKS cluster configuration"
+  type = object({
+    cluster_name       = string
+    kubernetes_version = string
+    cluster_endpoint_private_access = bool
+    cluster_endpoint_public_access  = bool
+    node_groups = map(object({
+      desired_size   = number
+      max_size       = number
+      min_size       = number
+      instance_types = list(string)
+      capacity_type  = string
+      disk_size      = number
+      labels         = map(string)
+      taints = list(object({
+        key    = string
+        value  = string
+        effect = string
+      }))
+    }))
+    cluster_addons = map(object({
+      version                 = string
+      resolve_conflicts       = string
+      service_account_role_arn = string
+    }))
+  })
+  default = {
+    cluster_name       = "my-cluster"
+    kubernetes_version = "1.28"
+    cluster_endpoint_private_access = true
+    cluster_endpoint_public_access  = false
+    node_groups = {
+      general = {
+        desired_size   = 3
+        max_size       = 5
+        min_size       = 2
+        instance_types = ["t3.medium"]
+        capacity_type  = "ON_DEMAND"
+        disk_size      = 50
+        labels         = {}
+        taints         = []
+      }
+    }
+    cluster_addons = {
+      vpc-cni = {
+        version                 = "v1.15.1-eksbuild.1"
+        resolve_conflicts       = "OVERWRITE"
+        service_account_role_arn = ""
+      }
+    }
+  }
+}
+
+# ============================================================================
+# ANY TYPE VARIABLES (use sparingly)
+# ============================================================================
+
+variable "custom_config" {
+  description = "Custom configuration (can be any type)"
+  type        = any
+  default     = {}
+}
+
+# ============================================================================
+# SET VARIABLES
+# ============================================================================
+
+variable "allowed_account_ids" {
+  description = "Set of allowed AWS account IDs"
+  type        = set(string)
+  default     = []
+}
+
+# ============================================================================
+# TUPLE VARIABLES
+# ============================================================================
+
+variable "lambda_config" {
+  description = "Lambda configuration tuple [runtime, handler, timeout]"
+  type        = tuple([string, string, number])
+  default     = ["python3.11", "index.handler", 300]
+}
+
+# ============================================================================
+# OPTIONAL ATTRIBUTES (Terraform 1.3+)
+# ============================================================================
+
+variable "advanced_config" {
+  description = "Advanced configuration with optional attributes"
+  type = object({
+    name     = string
+    size     = optional(number, 10)
+    tags     = optional(map(string), {})
+    features = optional(list(string), [])
+  })
+  default = {
+    name = "default"
+  }
+}
+
+# ============================================================================
+# VARIABLE VALIDATION EXAMPLES
+# ============================================================================
+
+variable "email" {
+  description = "Email address for notifications"
+  type        = string
+  default     = "{{EMAIL}}"
+
+  validation {
+    condition     = can(regex("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$", var.email))
+    error_message = "Must be a valid email address."
+  }
+}
+
+variable "cidr_block" {
+  description = "CIDR block for VPC"
+  type        = string
+  default     = "10.0.0.0/16"
+
+  validation {
+    condition     = can(cidrhost(var.cidr_block, 0))
+    error_message = "Must be a valid CIDR block."
+  }
+}
+
+variable "instance_type" {
+  description = "EC2 instance type"
+  type        = string
+  default     = "t3.medium"
+
+  validation {
+    condition     = can(regex("^[a-z][0-9][a-z]?\\.[a-z]+$", var.instance_type))
+    error_message = "Must be a valid EC2 instance type."
+  }
+}
+
+variable "backup_retention_days" {
+  description = "Number of days to retain backups"
+  type        = number
+  default     = 7
+
+  validation {
+    condition     = var.backup_retention_days >= 0 && var.backup_retention_days <= 35
+    error_message = "Backup retention must be between 0 and 35 days."
+  }
+}
+
+# ============================================================================
+# LOCALS (computed values based on variables)
+# ============================================================================
+
+locals {
+  name_prefix = "${var.project_name}-${var.environment}"
+
+  common_tags = merge(
+    var.tags,
+    var.additional_tags,
+    {
+      Terraform   = "true"
+      Environment = var.environment
+      Project     = var.project_name
+    }
+  )
+
+  is_production = var.environment == "prod"
+
+  instance_type = var.is_production ? "t3.large" : "t3.medium"
+}

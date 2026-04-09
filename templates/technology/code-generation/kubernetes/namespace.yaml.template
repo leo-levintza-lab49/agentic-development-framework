@@ -1,0 +1,61 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: {{NAMESPACE_NAME}}
+  labels:
+    name: {{NAMESPACE_NAME}}
+    environment: {{ENVIRONMENT}}
+    team: {{TEAM}}
+    {{ADDITIONAL_LABELS}}
+  annotations:
+    {{ANNOTATIONS}}
+spec:
+  finalizers:
+  - kubernetes
+
+---
+# Optional: ResourceQuota for namespace
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: {{NAMESPACE_NAME}}-quota
+  namespace: {{NAMESPACE_NAME}}
+spec:
+  hard:
+    requests.cpu: "{{CPU_REQUESTS_QUOTA}}"
+    requests.memory: "{{MEMORY_REQUESTS_QUOTA}}"
+    limits.cpu: "{{CPU_LIMITS_QUOTA}}"
+    limits.memory: "{{MEMORY_LIMITS_QUOTA}}"
+    persistentvolumeclaims: "{{PVC_QUOTA}}"
+    pods: "{{PODS_QUOTA}}"
+    services: "{{SERVICES_QUOTA}}"
+    services.loadbalancers: "{{LOAD_BALANCERS_QUOTA}}"
+
+---
+# Optional: LimitRange for namespace
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: {{NAMESPACE_NAME}}-limits
+  namespace: {{NAMESPACE_NAME}}
+spec:
+  limits:
+  - max:
+      cpu: "{{MAX_CPU_PER_POD}}"
+      memory: "{{MAX_MEMORY_PER_POD}}"
+    min:
+      cpu: "{{MIN_CPU_PER_POD}}"
+      memory: "{{MIN_MEMORY_PER_POD}}"
+    default:
+      cpu: "{{DEFAULT_CPU_LIMIT}}"
+      memory: "{{DEFAULT_MEMORY_LIMIT}}"
+    defaultRequest:
+      cpu: "{{DEFAULT_CPU_REQUEST}}"
+      memory: "{{DEFAULT_MEMORY_REQUEST}}"
+    type: Container
+  - max:
+      storage: "{{MAX_PVC_SIZE}}"
+    min:
+      storage: "{{MIN_PVC_SIZE}}"
+    type: PersistentVolumeClaim

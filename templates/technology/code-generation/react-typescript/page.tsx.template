@@ -1,0 +1,117 @@
+import React, { useEffect } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
+
+/**
+ * Props for the {{PAGE_NAME}} page
+ */
+interface {{PAGE_NAME}}Props {
+  // Add page-specific props
+}
+
+/**
+ * {{PAGE_NAME}} page component
+ *
+ * @description Main page component with routing, data fetching, and SEO
+ */
+export const {{PAGE_NAME}}: React.FC<{{PAGE_NAME}}Props> = () => {
+  const navigate = useNavigate();
+  const params = useParams<{ id?: string }>();
+  const [searchParams] = useSearchParams();
+
+  // Custom hooks for data fetching
+  // const { data, isLoading, error } = useYourCustomHook();
+
+  // Page-level side effects
+  useEffect(() => {
+    // Analytics tracking
+    // trackPageView('{{PAGE_NAME}}');
+
+    // Scroll to top on mount
+    window.scrollTo(0, 0);
+  }, []);
+
+  // Loading state
+  const renderLoading = () => (
+    <div className="loading-container" role="status" aria-live="polite">
+      <div className="spinner" aria-label="Loading content" />
+      <p>Loading {{PAGE_NAME}}...</p>
+    </div>
+  );
+
+  // Error state
+  const renderError = (error: Error) => (
+    <div className="error-container" role="alert">
+      <h2>Something went wrong</h2>
+      <p>{error.message}</p>
+      <button onClick={() => window.location.reload()}>Retry</button>
+    </div>
+  );
+
+  // Empty state
+  const renderEmpty = () => (
+    <div className="empty-container">
+      <h2>No content available</h2>
+      <p>There is no content to display at this time.</p>
+      <button onClick={() => navigate('/')}>Go Home</button>
+    </div>
+  );
+
+  // Main content
+  const renderContent = () => (
+    <div className="page-content">
+      <header className="page-header">
+        <h1>{{PAGE_NAME}}</h1>
+      </header>
+
+      <main className="page-main">
+        {/* Add page content here */}
+        <section aria-label="Main content">
+          {/* Content sections */}
+        </section>
+      </main>
+
+      <aside className="page-sidebar" aria-label="Sidebar content">
+        {/* Sidebar content */}
+      </aside>
+    </div>
+  );
+
+  return (
+    <>
+      {/* SEO Meta tags */}
+      <Helmet>
+        <title>{{PAGE_NAME}} | Your App Name</title>
+        <meta
+          name="description"
+          content="Description of {{PAGE_NAME}}"
+        />
+        <meta property="og:title" content="{{PAGE_NAME}}" />
+        <meta property="og:description" content="Description of {{PAGE_NAME}}" />
+        <meta property="og:type" content="website" />
+        <link rel="canonical" href={window.location.href} />
+      </Helmet>
+
+      {/* Page Layout */}
+      <div className="{{PAGE_NAME}}-page" data-testid="{{PAGE_NAME}}-page">
+        {/* Breadcrumbs */}
+        <nav aria-label="Breadcrumb">
+          <ol className="breadcrumb">
+            <li>
+              <a href="/">Home</a>
+            </li>
+            <li aria-current="page">{{PAGE_NAME}}</li>
+          </ol>
+        </nav>
+
+        {/* Conditional rendering based on state */}
+        {/* isLoading ? renderLoading() : error ? renderError(error) : !data ? renderEmpty() : renderContent() */}
+        {renderContent()}
+      </div>
+    </>
+  );
+};
+
+{{PAGE_NAME}}.displayName = '{{PAGE_NAME}}';
+
+export default {{PAGE_NAME}};

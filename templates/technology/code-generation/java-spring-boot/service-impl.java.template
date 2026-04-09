@@ -1,0 +1,373 @@
+package {{PACKAGE_NAME}}.service.impl;
+
+import {{PACKAGE_NAME}}.domain.entity.{{ENTITY_NAME}};
+import {{PACKAGE_NAME}}.dto.{{ENTITY_NAME}}Request;
+import {{PACKAGE_NAME}}.dto.{{ENTITY_NAME}}Response;
+import {{PACKAGE_NAME}}.exception.EntityNotFoundException;
+import {{PACKAGE_NAME}}.exception.BusinessException;
+import {{PACKAGE_NAME}}.mapper.{{ENTITY_NAME}}Mapper;
+import {{PACKAGE_NAME}}.repository.{{REPOSITORY_NAME}};
+import {{PACKAGE_NAME}}.service.{{SERVICE_NAME}};
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.validation.annotation.Validated;
+
+import javax.validation.Valid;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.stream.Collectors;
+
+/**
+ * Service implementation for {{ENTITY_NAME}} business logic.
+ * Handles CRUD operations, business validation, and orchestration.
+ *
+ * @author Generated
+ * @version 1.0
+ */
+@Service
+@Transactional
+@Validated
+@RequiredArgsConstructor
+@Slf4j
+public class {{SERVICE_NAME}}Impl implements {{SERVICE_NAME}} {
+
+    private final {{REPOSITORY_NAME}} repository;
+    private final {{ENTITY_NAME}}Mapper mapper;
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public {{ENTITY_NAME}}Response create(@Valid {{ENTITY_NAME}}Request request) {
+        log.debug("Creating new {{ENTITY_NAME}} with request: {}", request);
+
+        // Business validation
+        validateCreateRequest(request);
+
+        // Map DTO to entity
+        {{ENTITY_NAME}} entity = mapper.toEntity(request);
+
+        // Apply business logic before save
+        applyBusinessRulesOnCreate(entity);
+
+        // Persist entity
+        {{ENTITY_NAME}} saved = repository.save(entity);
+        log.info("Created {{ENTITY_NAME}} with id: {}", saved.getId());
+
+        // Map entity to response DTO
+        return mapper.toResponse(saved);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public {{ENTITY_NAME}}Response findById(Long id) {
+        log.debug("Finding {{ENTITY_NAME}} by id: {}", id);
+
+        {{ENTITY_NAME}} entity = repository.findByIdAndNotDeleted(id)
+                .orElseThrow(() -> new EntityNotFoundException(
+                        "{{ENTITY_NAME}} not found with id: " + id));
+
+        return mapper.toResponse(entity);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public Page<{{ENTITY_NAME}}Response> findAll(Pageable pageable) {
+        log.debug("Finding all {{ENTITY_NAME}} entities with pageable: {}", pageable);
+
+        return repository.findAll(pageable)
+                .map(mapper::toResponse);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public Page<{{ENTITY_NAME}}Response> findAllActive(Pageable pageable) {
+        log.debug("Finding all active {{ENTITY_NAME}} entities with pageable: {}", pageable);
+
+        return repository.findAllActive(pageable)
+                .map(mapper::toResponse);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public {{ENTITY_NAME}}Response update(Long id, @Valid {{ENTITY_NAME}}Request request) {
+        log.debug("Updating {{ENTITY_NAME}} with id: {} and request: {}", id, request);
+
+        // Find existing entity
+        {{ENTITY_NAME}} existing = repository.findByIdAndNotDeleted(id)
+                .orElseThrow(() -> new EntityNotFoundException(
+                        "{{ENTITY_NAME}} not found with id: " + id));
+
+        // Business validation
+        validateUpdateRequest(id, request, existing);
+
+        // Update entity fields
+        mapper.updateEntityFromRequest(request, existing);
+
+        // Apply business logic before update
+        applyBusinessRulesOnUpdate(existing);
+
+        // Save updated entity
+        {{ENTITY_NAME}} updated = repository.save(existing);
+        log.info("Updated {{ENTITY_NAME}} with id: {}", updated.getId());
+
+        return mapper.toResponse(updated);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public {{ENTITY_NAME}}Response partialUpdate(Long id, {{ENTITY_NAME}}Request request) {
+        log.debug("Partially updating {{ENTITY_NAME}} with id: {} and request: {}", id, request);
+
+        // Find existing entity
+        {{ENTITY_NAME}} existing = repository.findByIdAndNotDeleted(id)
+                .orElseThrow(() -> new EntityNotFoundException(
+                        "{{ENTITY_NAME}} not found with id: " + id));
+
+        // Partial update (only non-null fields)
+        mapper.partialUpdateEntityFromRequest(request, existing);
+
+        // Apply business logic
+        applyBusinessRulesOnUpdate(existing);
+
+        // Save updated entity
+        {{ENTITY_NAME}} updated = repository.save(existing);
+        log.info("Partially updated {{ENTITY_NAME}} with id: {}", updated.getId());
+
+        return mapper.toResponse(updated);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void delete(Long id) {
+        log.debug("Soft deleting {{ENTITY_NAME}} with id: {}", id);
+
+        // Find existing entity
+        {{ENTITY_NAME}} existing = repository.findByIdAndNotDeleted(id)
+                .orElseThrow(() -> new EntityNotFoundException(
+                        "{{ENTITY_NAME}} not found with id: " + id));
+
+        // Business validation before delete
+        validateDeleteRequest(id, existing);
+
+        // Soft delete
+        existing.softDelete();
+        repository.save(existing);
+
+        log.info("Soft deleted {{ENTITY_NAME}} with id: {}", id);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void hardDelete(Long id) {
+        log.warn("Hard deleting {{ENTITY_NAME}} with id: {}", id);
+
+        if (!repository.existsById(id)) {
+            throw new EntityNotFoundException("{{ENTITY_NAME}} not found with id: " + id);
+        }
+
+        repository.deleteById(id);
+        log.info("Hard deleted {{ENTITY_NAME}} with id: {}", id);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public {{ENTITY_NAME}}Response restore(Long id) {
+        log.debug("Restoring {{ENTITY_NAME}} with id: {}", id);
+
+        {{ENTITY_NAME}} entity = repository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException(
+                        "{{ENTITY_NAME}} not found with id: " + id));
+
+        if (!entity.isDeleted()) {
+            throw new BusinessException("{{ENTITY_NAME}} with id " + id + " is not deleted");
+        }
+
+        entity.restore();
+        {{ENTITY_NAME}} restored = repository.save(entity);
+
+        log.info("Restored {{ENTITY_NAME}} with id: {}", id);
+        return mapper.toResponse(restored);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public boolean exists(Long id) {
+        return repository.existsByIdAndNotDeleted(id);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public long countActive() {
+        return repository.countActive();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public Page<{{ENTITY_NAME}}Response> findCreatedAfter(LocalDateTime date, Pageable pageable) {
+        log.debug("Finding {{ENTITY_NAME}} entities created after: {}", date);
+
+        return repository.findByCreatedAtAfterAndDeletedFalse(date, pageable)
+                .map(mapper::toResponse);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    @Transactional(readOnly = true)
+    public Page<{{ENTITY_NAME}}Response> findUpdatedAfter(LocalDateTime date, Pageable pageable) {
+        log.debug("Finding {{ENTITY_NAME}} entities updated after: {}", date);
+
+        return repository.findByUpdatedAtAfterAndDeletedFalse(date, pageable)
+                .map(mapper::toResponse);
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public List<{{ENTITY_NAME}}Response> bulkCreate(List<@Valid {{ENTITY_NAME}}Request> requests) {
+        log.debug("Bulk creating {} {{ENTITY_NAME}} entities", requests.size());
+
+        // Validate all requests
+        requests.forEach(this::validateCreateRequest);
+
+        // Map to entities
+        List<{{ENTITY_NAME}}> entities = requests.stream()
+                .map(mapper::toEntity)
+                .peek(this::applyBusinessRulesOnCreate)
+                .collect(Collectors.toList());
+
+        // Bulk save
+        List<{{ENTITY_NAME}}> saved = repository.saveAll(entities);
+        log.info("Bulk created {} {{ENTITY_NAME}} entities", saved.size());
+
+        return saved.stream()
+                .map(mapper::toResponse)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void bulkDelete(List<Long> ids) {
+        log.debug("Bulk deleting {} {{ENTITY_NAME}} entities", ids.size());
+
+        List<{{ENTITY_NAME}}> entities = repository.findAllById(ids);
+
+        if (entities.size() != ids.size()) {
+            throw new EntityNotFoundException(
+                    "Some {{ENTITY_NAME}} entities not found for bulk delete");
+        }
+
+        entities.forEach(entity -> {
+            validateDeleteRequest(entity.getId(), entity);
+            entity.softDelete();
+        });
+
+        repository.saveAll(entities);
+        log.info("Bulk deleted {} {{ENTITY_NAME}} entities", entities.size());
+    }
+
+    // ==================== Private Helper Methods ====================
+
+    /**
+     * Validate business rules for create operation.
+     *
+     * @param request the create request
+     * @throws BusinessException if validation fails
+     */
+    private void validateCreateRequest({{ENTITY_NAME}}Request request) {
+        // Add custom business validation logic here
+        // Example: Check for duplicate names, validate relationships, etc.
+
+        log.debug("Validating create request for {{ENTITY_NAME}}");
+    }
+
+    /**
+     * Validate business rules for update operation.
+     *
+     * @param id the entity identifier
+     * @param request the update request
+     * @param existing the existing entity
+     * @throws BusinessException if validation fails
+     */
+    private void validateUpdateRequest(Long id, {{ENTITY_NAME}}Request request, {{ENTITY_NAME}} existing) {
+        // Add custom business validation logic here
+        // Example: Check for state transitions, validate permissions, etc.
+
+        log.debug("Validating update request for {{ENTITY_NAME}} with id: {}", id);
+    }
+
+    /**
+     * Validate business rules for delete operation.
+     *
+     * @param id the entity identifier
+     * @param existing the existing entity
+     * @throws BusinessException if validation fails
+     */
+    private void validateDeleteRequest(Long id, {{ENTITY_NAME}} existing) {
+        // Add custom business validation logic here
+        // Example: Check for dependencies, validate permissions, etc.
+
+        log.debug("Validating delete request for {{ENTITY_NAME}} with id: {}", id);
+    }
+
+    /**
+     * Apply business rules when creating a new entity.
+     *
+     * @param entity the entity to be created
+     */
+    private void applyBusinessRulesOnCreate({{ENTITY_NAME}} entity) {
+        // Add custom business logic here
+        // Example: Set default values, calculate fields, initialize state, etc.
+
+        log.debug("Applying business rules on create for {{ENTITY_NAME}}");
+    }
+
+    /**
+     * Apply business rules when updating an entity.
+     *
+     * @param entity the entity to be updated
+     */
+    private void applyBusinessRulesOnUpdate({{ENTITY_NAME}} entity) {
+        // Add custom business logic here
+        // Example: Recalculate fields, update state, validate transitions, etc.
+
+        log.debug("Applying business rules on update for {{ENTITY_NAME}}");
+    }
+}

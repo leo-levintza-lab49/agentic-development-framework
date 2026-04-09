@@ -1,0 +1,119 @@
+-- Template: Migration Down (Rollback)
+-- Description: Rollback script to revert schema and data changes
+-- Variables: {{MIGRATION_ID}}, {{DESCRIPTION}}, {{ROLLBACK_CHANGES}}
+
+-- Migration ID: {{MIGRATION_ID}}
+-- Description: Rollback for {{DESCRIPTION}}
+-- Date: {{DATE}}
+-- Author: {{AUTHOR}}
+
+BEGIN;
+
+-- ============================================
+-- ROLLBACK VALIDATION
+-- ============================================
+
+-- Verify this migration can be safely rolled back
+DO $$
+DECLARE
+    current_version VARCHAR(255);
+BEGIN
+    SELECT version INTO current_version
+    FROM schema_migrations
+    ORDER BY applied_at DESC
+    LIMIT 1;
+
+    IF current_version != '{{MIGRATION_ID}}' THEN
+        RAISE EXCEPTION 'Cannot rollback: Current version (%) does not match migration ({{MIGRATION_ID}})', current_version;
+    END IF;
+END $$;
+
+-- ============================================
+-- DATA ROLLBACK (Before Schema Changes)
+-- ============================================
+
+-- Example: Restore old data structure
+-- INSERT INTO old_table (id, old_name, created_at)
+-- SELECT id, name, created_at
+-- FROM new_table
+-- WHERE NOT EXISTS (SELECT 1 FROM old_table WHERE old_table.id = new_table.id);
+
+-- Example: Revert data updates
+-- UPDATE table_name
+-- SET column_name = old_value
+-- WHERE column_name = new_value;
+
+-- Example: Remove migrated data
+-- DELETE FROM new_table
+-- WHERE created_at >= (
+--     SELECT applied_at FROM schema_migrations WHERE version = '{{MIGRATION_ID}}'
+-- );
+
+-- ============================================
+-- SCHEMA ROLLBACK
+-- ============================================
+
+{{ROLLBACK_CHANGES}}
+
+-- Example: Drop table
+-- DROP TABLE IF EXISTS new_table CASCADE;
+
+-- Example: Remove column
+-- ALTER TABLE existing_table
+-- DROP COLUMN IF EXISTS new_column;
+
+-- Example: Revert column type change
+-- ALTER TABLE existing_table
+-- ALTER COLUMN column_name TYPE VARCHAR(255);
+
+-- Example: Rename column back
+-- ALTER TABLE existing_table
+-- RENAME COLUMN new_column_name TO old_column_name;
+
+-- Example: Drop constraint
+-- ALTER TABLE existing_table
+-- DROP CONSTRAINT IF EXISTS chk_column_name;
+
+-- Example: Drop index
+-- DROP INDEX IF EXISTS idx_table_column;
+
+-- Example: Drop trigger
+-- DROP TRIGGER IF EXISTS trigger_name ON table_name;
+
+-- Example: Drop function
+-- DROP FUNCTION IF EXISTS function_name() CASCADE;
+
+-- ============================================
+-- RESTORE CONSTRAINTS AND DEFAULTS
+-- ============================================
+
+-- Example: Restore original constraints
+-- ALTER TABLE existing_table
+-- ALTER COLUMN column_name SET DEFAULT 'original_default';
+
+-- ALTER TABLE existing_table
+-- ADD CONSTRAINT original_constraint_name CHECK (original_condition);
+
+-- ============================================
+-- REVOKE PERMISSIONS
+-- ============================================
+
+-- Example: Revoke table permissions
+-- REVOKE SELECT, INSERT, UPDATE, DELETE ON new_table FROM app_user;
+-- REVOKE USAGE, SELECT ON SEQUENCE new_table_id_seq FROM app_user;
+
+-- ============================================
+-- REMOVE MIGRATION RECORD
+-- ============================================
+
+DELETE FROM schema_migrations
+WHERE version = '{{MIGRATION_ID}}';
+
+COMMIT;
+
+-- Post-rollback operations
+-- VACUUM ANALYZE affected_tables;
+
+-- Verification queries
+-- SELECT COUNT(*) FROM old_table;
+-- SELECT COUNT(*) FROM new_table;

@@ -1,0 +1,102 @@
+import { useQuery, useMutation, useQueryClient, UseQueryOptions } from '@tanstack/react-query';
+import { AxiosError } from 'axios';
+
+/**
+ * Response type for {{HOOK_NAME}}
+ */
+interface {{HOOK_NAME}}Response {
+  // Define response structure
+  data: unknown;
+}
+
+/**
+ * Request type for {{HOOK_NAME}}
+ */
+interface {{HOOK_NAME}}Request {
+  // Define request structure
+  id?: string;
+}
+
+/**
+ * Error type for API calls
+ */
+interface ApiError {
+  message: string;
+  code?: string;
+  details?: Record<string, unknown>;
+}
+
+/**
+ * Custom hook for {{HOOK_NAME}}
+ *
+ * @description Fetches data from {{API_ENDPOINT}}
+ * @example
+ * const { data, isLoading, error } = {{HOOK_NAME}}({ id: '123' });
+ */
+export const {{HOOK_NAME}} = (
+  params?: {{HOOK_NAME}}Request,
+  options?: Omit<UseQueryOptions<{{HOOK_NAME}}Response, AxiosError<ApiError>>, 'queryKey' | 'queryFn'>
+) => {
+  return useQuery<{{HOOK_NAME}}Response, AxiosError<ApiError>>({
+    queryKey: ['{{HOOK_NAME}}', params],
+    queryFn: async () => {
+      // Implement API call here
+      const response = await fetch('{{API_ENDPOINT}}', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch data');
+      }
+
+      return response.json();
+    },
+    enabled: !!params, // Only run query if params are provided
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: 3,
+    ...options,
+  });
+};
+
+/**
+ * Mutation hook for {{HOOK_NAME}}
+ *
+ * @description Creates or updates data at {{API_ENDPOINT}}
+ * @example
+ * const mutation = {{HOOK_NAME}}Mutation();
+ * mutation.mutate({ data: {...} });
+ */
+export const {{HOOK_NAME}}Mutation = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation<{{HOOK_NAME}}Response, AxiosError<ApiError>, {{HOOK_NAME}}Request>({
+    mutationFn: async (data: {{HOOK_NAME}}Request) => {
+      // Implement API call here
+      const response = await fetch('{{API_ENDPOINT}}', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to submit data');
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      // Invalidate and refetch queries
+      queryClient.invalidateQueries({ queryKey: ['{{HOOK_NAME}}'] });
+    },
+    onError: (error) => {
+      console.error('Mutation error:', error.response?.data || error.message);
+    },
+  });
+};
+
+export default {{HOOK_NAME}};

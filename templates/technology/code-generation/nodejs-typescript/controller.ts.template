@@ -1,0 +1,383 @@
+import { Request, Response, NextFunction } from 'express';
+import { {{SERVICE_NAME}}Service } from '../services/{{SERVICE_NAME}}.service';
+import {
+  Create{{MODEL_NAME}}Dto,
+  Update{{MODEL_NAME}}Dto,
+  {{MODEL_NAME}}QueryParams
+} from '../models/{{MODEL_NAME}}.model';
+import { ApiError } from '../errors/ApiError';
+import { logger } from '../utils/logger';
+
+/**
+ * Controller for {{CONTROLLER_NAME}}
+ * Handles HTTP requests and delegates business logic to services
+ */
+export class {{CONTROLLER_NAME}} {
+  private {{SERVICE_NAME}}Service: {{SERVICE_NAME}}Service;
+
+  constructor() {
+    this.{{SERVICE_NAME}}Service = new {{SERVICE_NAME}}Service();
+  }
+
+  /**
+   * Get all items with pagination and filtering
+   * GET /{{ROUTE_NAME}}
+   */
+  getAll = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const queryParams: {{MODEL_NAME}}QueryParams = {
+        page: req.query.page ? parseInt(req.query.page as string, 10) : 1,
+        limit: req.query.limit ? parseInt(req.query.limit as string, 10) : 10,
+        sort: req.query.sort as any,
+        order: (req.query.order as 'asc' | 'desc') || 'asc',
+        search: req.query.search as string,
+        status: req.query.status as any
+      };
+
+      logger.info('Fetching all {{ROUTE_NAME}}', {
+        queryParams,
+        requestId: req.requestId,
+        userId: req.user?.userId
+      });
+
+      const result = await this.{{SERVICE_NAME}}Service.getAll({
+        page: queryParams.page!,
+        limit: queryParams.limit!,
+        sort: queryParams.sort,
+        order: queryParams.order
+      });
+
+      res.json({
+        success: true,
+        data: result.items,
+        pagination: {
+          page: result.page,
+          limit: result.limit,
+          total: result.total,
+          totalPages: result.totalPages,
+          hasNextPage: result.page < result.totalPages,
+          hasPreviousPage: result.page > 1
+        },
+        requestId: req.requestId
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Get a single item by ID
+   * GET /{{ROUTE_NAME}}/:id
+   */
+  getById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { id } = req.params;
+
+      logger.info('Fetching {{ROUTE_NAME}} by ID', {
+        id,
+        requestId: req.requestId,
+        userId: req.user?.userId
+      });
+
+      const item = await this.{{SERVICE_NAME}}Service.getById(id);
+
+      if (!item) {
+        throw new ApiError(404, `{{MODEL_NAME}} with ID ${id} not found`);
+      }
+
+      res.json({
+        success: true,
+        data: item,
+        requestId: req.requestId
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Create a new item
+   * POST /{{ROUTE_NAME}}
+   */
+  create = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const data: Create{{MODEL_NAME}}Dto = req.body;
+
+      logger.info('Creating new {{ROUTE_NAME}}', {
+        data,
+        requestId: req.requestId,
+        userId: req.user?.userId
+      });
+
+      const item = await this.{{SERVICE_NAME}}Service.create(data);
+
+      res.status(201).json({
+        success: true,
+        data: item,
+        message: '{{MODEL_NAME}} created successfully',
+        requestId: req.requestId
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Update an existing item
+   * PUT /{{ROUTE_NAME}}/:id
+   */
+  update = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { id } = req.params;
+      const data: Update{{MODEL_NAME}}Dto = req.body;
+
+      logger.info('Updating {{ROUTE_NAME}}', {
+        id,
+        data,
+        requestId: req.requestId,
+        userId: req.user?.userId
+      });
+
+      const item = await this.{{SERVICE_NAME}}Service.update(id, data);
+
+      if (!item) {
+        throw new ApiError(404, `{{MODEL_NAME}} with ID ${id} not found`);
+      }
+
+      res.json({
+        success: true,
+        data: item,
+        message: '{{MODEL_NAME}} updated successfully',
+        requestId: req.requestId
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Partially update an existing item
+   * PATCH /{{ROUTE_NAME}}/:id
+   */
+  patch = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { id } = req.params;
+      const data = req.body;
+
+      logger.info('Partially updating {{ROUTE_NAME}}', {
+        id,
+        data,
+        requestId: req.requestId,
+        userId: req.user?.userId
+      });
+
+      const item = await this.{{SERVICE_NAME}}Service.patch(id, data);
+
+      if (!item) {
+        throw new ApiError(404, `{{MODEL_NAME}} with ID ${id} not found`);
+      }
+
+      res.json({
+        success: true,
+        data: item,
+        message: '{{MODEL_NAME}} updated successfully',
+        requestId: req.requestId
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Delete an item
+   * DELETE /{{ROUTE_NAME}}/:id
+   */
+  delete = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { id } = req.params;
+
+      logger.info('Deleting {{ROUTE_NAME}}', {
+        id,
+        requestId: req.requestId,
+        userId: req.user?.userId
+      });
+
+      await this.{{SERVICE_NAME}}Service.delete(id);
+
+      res.status(204).send();
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Get aggregated data (BFF pattern)
+   * GET /{{ROUTE_NAME}}/:id/aggregate
+   */
+  getAggregated = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { id } = req.params;
+
+      logger.info('Fetching aggregated data for {{ROUTE_NAME}}', {
+        id,
+        requestId: req.requestId,
+        userId: req.user?.userId
+      });
+
+      const data = await this.{{SERVICE_NAME}}Service.aggregateData(id);
+
+      res.json({
+        success: true,
+        data,
+        requestId: req.requestId
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Bulk create items
+   * POST /{{ROUTE_NAME}}/bulk
+   */
+  bulkCreate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const items: Create{{MODEL_NAME}}Dto[] = req.body;
+
+      if (!Array.isArray(items) || items.length === 0) {
+        throw new ApiError(400, 'Request body must be a non-empty array');
+      }
+
+      logger.info('Bulk creating {{ROUTE_NAME}}', {
+        count: items.length,
+        requestId: req.requestId,
+        userId: req.user?.userId
+      });
+
+      const results = await Promise.allSettled(
+        items.map(item => this.{{SERVICE_NAME}}Service.create(item))
+      );
+
+      const successful = results.filter(r => r.status === 'fulfilled');
+      const failed = results.filter(r => r.status === 'rejected');
+
+      res.status(207).json({
+        success: failed.length === 0,
+        data: {
+          successful: successful.map(r => (r as PromiseFulfilledResult<any>).value),
+          failed: failed.map((r, index) => ({
+            index,
+            error: (r as PromiseRejectedResult).reason.message
+          }))
+        },
+        message: `${successful.length} items created, ${failed.length} failed`,
+        requestId: req.requestId
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Bulk update items
+   * PATCH /{{ROUTE_NAME}}/bulk
+   */
+  bulkUpdate = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const updates: Array<{ id: string; data: Update{{MODEL_NAME}}Dto }> = req.body;
+
+      if (!Array.isArray(updates) || updates.length === 0) {
+        throw new ApiError(400, 'Request body must be a non-empty array');
+      }
+
+      logger.info('Bulk updating {{ROUTE_NAME}}', {
+        count: updates.length,
+        requestId: req.requestId,
+        userId: req.user?.userId
+      });
+
+      const results = await Promise.allSettled(
+        updates.map(({ id, data }) => this.{{SERVICE_NAME}}Service.update(id, data))
+      );
+
+      const successful = results.filter(r => r.status === 'fulfilled');
+      const failed = results.filter(r => r.status === 'rejected');
+
+      res.status(207).json({
+        success: failed.length === 0,
+        data: {
+          successful: successful.map(r => (r as PromiseFulfilledResult<any>).value),
+          failed: failed.map((r, index) => ({
+            index,
+            error: (r as PromiseRejectedResult).reason.message
+          }))
+        },
+        message: `${successful.length} items updated, ${failed.length} failed`,
+        requestId: req.requestId
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Bulk delete items
+   * DELETE /{{ROUTE_NAME}}/bulk
+   */
+  bulkDelete = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const ids: string[] = req.body.ids;
+
+      if (!Array.isArray(ids) || ids.length === 0) {
+        throw new ApiError(400, 'Request body must contain a non-empty array of IDs');
+      }
+
+      logger.info('Bulk deleting {{ROUTE_NAME}}', {
+        count: ids.length,
+        requestId: req.requestId,
+        userId: req.user?.userId
+      });
+
+      const results = await Promise.allSettled(
+        ids.map(id => this.{{SERVICE_NAME}}Service.delete(id))
+      );
+
+      const successful = results.filter(r => r.status === 'fulfilled');
+      const failed = results.filter(r => r.status === 'rejected');
+
+      res.json({
+        success: failed.length === 0,
+        data: {
+          successful: successful.length,
+          failed: failed.map((r, index) => ({
+            id: ids[index],
+            error: (r as PromiseRejectedResult).reason.message
+          }))
+        },
+        message: `${successful.length} items deleted, ${failed.length} failed`,
+        requestId: req.requestId
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * Health check endpoint
+   * GET /{{ROUTE_NAME}}/health
+   */
+  healthCheck = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      res.json({
+        success: true,
+        data: {
+          status: 'healthy',
+          timestamp: new Date().toISOString(),
+          service: '{{CONTROLLER_NAME}}'
+        }
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+}

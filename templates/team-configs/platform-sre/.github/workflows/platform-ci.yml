@@ -1,0 +1,372 @@
+name: Platform SRE CI Pipeline
+
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+      - 'release/**'
+    paths:
+      - 'terraform/**'
+      - 'k8s/**'
+      - 'helm/**'
+      - 'scripts/**'
+      - '.github/workflows/**'
+  push:
+    branches:
+      - main
+
+env:
+  TERRAFORM_VERSION: '1.6.0'
+  TFSEC_VERSION: 'latest'
+  CHECKOV_VERSION: '3.1.0'
+  KUBECTL_VERSION: '1.28.0'
+  HELM_VERSION: '3.13.0'
+
+jobs:
+  terraform-validate:
+    name: Terraform Validation
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        environment: [dev, staging, production]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: Terraform Format Check
+        id: fmt
+        run: terraform fmt -check -recursive terraform/
+        continue-on-error: true
+
+      - name: Terraform Init
+        run: |
+          cd terraform/${{ matrix.environment }}
+          terraform init -backend=false
+
+      - name: Terraform Validate
+        run: |
+          cd terraform/${{ matrix.environment }}
+          terraform validate
+
+      - name: Comment Format Issues
+        if: steps.fmt.outcome == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '⚠️ Terraform formatting issues detected. Run `terraform fmt -recursive` to fix.'
+            })
+
+  terraform-plan:
+    name: Terraform Plan
+    runs-on: ubuntu-latest
+    needs: terraform-validate
+    strategy:
+      matrix:
+        environment: [dev, staging, production]
+
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ env.TERRAFORM_VERSION }}
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets[format('AWS_ROLE_{0}', matrix.environment)] }}
+          aws-region: us-east-1
+
+      - name: Terraform Init
+        run: |
+          cd terraform/${{ matrix.environment }}
+          terraform init
+
+      - name: Terraform Plan
+        id: plan
+        run: |
+          cd terraform/${{ matrix.environment }}
+          terraform plan -out=tfplan -no-color | tee plan.txt
+        continue-on-error: true
+
+      - name: Post Plan to PR
+        uses: actions/github-script@v7
+        if: github.event_name == 'pull_request'
+        with:
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync('terraform/${{ matrix.environment }}/plan.txt', 'utf8');
+            const truncatedPlan = plan.length > 65000 ? plan.substring(0, 65000) + '\n... (truncated)' : plan;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## Terraform Plan - ${{ matrix.environment }}\n\`\`\`terraform\n${truncatedPlan}\n\`\`\``
+            })
+
+  security-scan:
+    name: Security Scanning
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run tfsec
+        uses: aquasecurity/tfsec-action@v1.0.3
+        with:
+          soft_fail: false
+          format: sarif
+          output: tfsec.sarif
+
+      - name: Upload tfsec results
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: tfsec.sarif
+
+      - name: Setup Python for Checkov
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Checkov
+        run: pip install checkov==${{ env.CHECKOV_VERSION }}
+
+      - name: Run Checkov
+        id: checkov
+        run: |
+          checkov -d terraform/ \
+            --framework terraform \
+            --output cli \
+            --output json \
+            --output-file-path console,checkov-report.json \
+            --soft-fail
+
+      - name: Upload Checkov results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: checkov-report
+          path: checkov-report.json
+
+      - name: Scan for secrets
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: ${{ github.event.repository.default_branch }}
+          head: HEAD
+
+  kubernetes-validation:
+    name: Kubernetes Manifest Validation
+    runs-on: ubuntu-latest
+    if: |
+      contains(github.event.pull_request.changed_files, 'k8s/') ||
+      contains(github.event.pull_request.changed_files, 'helm/')
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: v${{ env.KUBECTL_VERSION }}
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v${{ env.HELM_VERSION }}
+
+      - name: Validate Kubernetes manifests
+        run: |
+          for file in $(find k8s/ -name "*.yaml" -o -name "*.yml"); do
+            echo "Validating $file"
+            kubectl apply --dry-run=client -f "$file"
+          done
+
+      - name: Lint Helm charts
+        run: |
+          for chart in $(find helm/ -name "Chart.yaml" -exec dirname {} \;); do
+            echo "Linting $chart"
+            helm lint "$chart"
+          done
+
+      - name: Template Helm charts
+        run: |
+          for chart in $(find helm/ -name "Chart.yaml" -exec dirname {} \;); do
+            echo "Templating $chart"
+            helm template test "$chart" --debug
+          done
+
+      - name: Run kubeconform
+        uses: docker://ghcr.io/yannh/kubeconform:latest
+        with:
+          entrypoint: /kubeconform
+          args: -summary -output json k8s/
+
+  cost-estimation:
+    name: Cost Impact Analysis
+    runs-on: ubuntu-latest
+    needs: terraform-plan
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Infracost
+        uses: infracost/actions/setup@v3
+        with:
+          api-key: ${{ secrets.INFRACOST_API_KEY }}
+
+      - name: Generate Infracost diff
+        run: |
+          infracost breakdown --path terraform/ \
+            --format json \
+            --out-file infracost-base.json
+
+      - name: Post cost estimate to PR
+        uses: infracost/actions/comment@v1
+        with:
+          path: infracost-base.json
+          behavior: update
+
+  compliance-check:
+    name: Compliance and Policy Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup OPA
+        uses: open-policy-agent/setup-opa@v2
+
+      - name: Run OPA policy tests
+        run: |
+          if [ -d "policies/" ]; then
+            opa test policies/ -v
+          fi
+
+      - name: Check for required documentation
+        run: |
+          if [[ "${{ github.event.pull_request.base.ref }}" == *"prod"* ]] || \
+             [[ "${{ github.event.pull_request.head.ref }}" == *"prod"* ]]; then
+
+            # Check for rollback plan
+            if ! grep -q -i "rollback" "${{ github.event.pull_request.body }}"; then
+              echo "::error::Production changes require a rollback plan in the PR description"
+              exit 1
+            fi
+
+            # Check for impact assessment
+            if ! grep -q -i "impact" "${{ github.event.pull_request.body }}"; then
+              echo "::error::Production changes require an impact assessment in the PR description"
+              exit 1
+            fi
+          fi
+
+  integration-tests:
+    name: Infrastructure Integration Tests
+    runs-on: ubuntu-latest
+    needs: [terraform-validate, kubernetes-validation]
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Terratest
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Run Terratest
+        run: |
+          if [ -d "test/" ]; then
+            cd test/
+            go test -v -timeout 30m
+          fi
+
+  approval-gate:
+    name: Production Approval Gate
+    runs-on: ubuntu-latest
+    if: contains(github.event.pull_request.head.ref, 'prod')
+    needs: [security-scan, cost-estimation, compliance-check]
+
+    steps:
+      - name: Request approval
+        uses: trstringer/manual-approval@v1
+        with:
+          secret: ${{ github.TOKEN }}
+          approvers: platform-sre-leads,engineering-leads
+          minimum-approvals: 2
+          issue-title: "Production Infrastructure Change Approval Required"
+          issue-body: |
+            Please review and approve this production infrastructure change:
+            PR: ${{ github.event.pull_request.html_url }}
+
+            Required checks:
+            - [ ] Security scan passed
+            - [ ] Cost impact reviewed
+            - [ ] Rollback plan documented
+            - [ ] Impact assessment completed
+            - [ ] Disaster recovery tested
+
+  summary:
+    name: CI Summary
+    runs-on: ubuntu-latest
+    needs: [terraform-validate, terraform-plan, security-scan, kubernetes-validation, cost-estimation, compliance-check]
+    if: always()
+
+    steps:
+      - name: Generate summary
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const status = {
+              terraform: '${{ needs.terraform-validate.result }}',
+              plan: '${{ needs.terraform-plan.result }}',
+              security: '${{ needs.security-scan.result }}',
+              kubernetes: '${{ needs.kubernetes-validation.result }}',
+              cost: '${{ needs.cost-estimation.result }}',
+              compliance: '${{ needs.compliance-check.result }}'
+            };
+
+            const emoji = (result) => {
+              if (result === 'success') return '✅';
+              if (result === 'failure') return '❌';
+              if (result === 'skipped') return '⏭️';
+              return '⚠️';
+            };
+
+            const summary = `## Platform SRE CI Pipeline Summary
+
+            ${emoji(status.terraform)} Terraform Validation: ${status.terraform}
+            ${emoji(status.plan)} Terraform Plan: ${status.plan}
+            ${emoji(status.security)} Security Scan: ${status.security}
+            ${emoji(status.kubernetes)} Kubernetes Validation: ${status.kubernetes}
+            ${emoji(status.cost)} Cost Estimation: ${status.cost}
+            ${emoji(status.compliance)} Compliance Check: ${status.compliance}
+            `;
+
+            core.summary.addRaw(summary).write();

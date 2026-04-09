@@ -1,0 +1,538 @@
+# Terraform Main Configuration Template
+# Description: Main entry point with provider configuration, backend, and module calls
+# Placeholders: {{PROJECT_NAME}}, {{REGION}}, {{ACCOUNT_ID}}, {{ENVIRONMENT}}
+
+# ============================================================================
+# TERRAFORM BLOCK
+# ============================================================================
+
+terraform {
+  required_version = ">= 1.5.0"
+
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.5"
+    }
+    null = {
+      source  = "hashicorp/null"
+      version = "~> 3.2"
+    }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = "~> 2.23"
+    }
+    helm = {
+      source  = "hashicorp/helm"
+      version = "~> 2.11"
+    }
+    tls = {
+      source  = "hashicorp/tls"
+      version = "~> 4.0"
+    }
+  }
+
+  # Backend Configuration - S3 with state locking via DynamoDB
+  backend "s3" {
+    bucket         = "{{TERRAFORM_STATE_BUCKET}}" # e.g., "my-terraform-state-bucket"
+    key            = "{{PROJECT_NAME}}/{{ENVIRONMENT}}/terraform.tfstate"
+    region         = "{{REGION}}"
+    encrypt        = true
+    dynamodb_table = "{{TERRAFORM_LOCK_TABLE}}" # e.g., "terraform-state-lock"
+    kms_key_id     = "{{TERRAFORM_KMS_KEY_ID}}" # Optional: ARN of KMS key for encryption
+
+    # Workspace-based state path (optional)
+    # workspace_key_prefix = "workspaces"
+  }
+
+  # Alternative: Local backend (for development only)
+  # backend "local" {
+  #   path = "terraform.tfstate"
+  # }
+
+  # Alternative: Terraform Cloud backend
+  # cloud {
+  #   organization = "{{ORG_NAME}}"
+  #   workspaces {
+  #     name = "{{PROJECT_NAME}}-{{ENVIRONMENT}}"
+  #   }
+  # }
+}
+
+# ============================================================================
+# PROVIDER CONFIGURATION
+# ============================================================================
+
+# Default AWS Provider
+provider "aws" {
+  region = var.region
+
+  # Assume role configuration (optional)
+  # assume_role {
+  #   role_arn     = "arn:aws:iam::{{ACCOUNT_ID}}:role/{{ROLE_NAME}}"
+  #   session_name = "terraform-{{PROJECT_NAME}}"
+  #   external_id  = "{{EXTERNAL_ID}}"
+  # }
+
+  # Default tags applied to all resources
+  default_tags {
+    tags = {
+      Project     = var.project_name
+      Environment = var.environment
+      ManagedBy   = "terraform"
+      Repository  = "{{REPOSITORY_URL}}"
+      Owner       = "{{TEAM_NAME}}"
+    }
+  }
+
+  # Allowed account IDs (prevents accidental deployment to wrong account)
+  allowed_account_ids = ["{{ACCOUNT_ID}}"]
+
+  # Skip credential validation, metadata API check, etc (for faster init)
+  # skip_credentials_validation = false
+  # skip_metadata_api_check     = false
+  # skip_region_validation      = false
+  # skip_requesting_account_id  = false
+}
+
+# Secondary region provider (for multi-region deployments)
+provider "aws" {
+  alias  = "secondary"
+  region = "{{SECONDARY_REGION}}" # e.g., "us-west-2"
+
+  default_tags {
+    tags = {
+      Project     = var.project_name
+      Environment = var.environment
+      ManagedBy   = "terraform"
+      Region      = "secondary"
+    }
+  }
+}
+
+# Provider for us-east-1 (required for ACM certificates for CloudFront)
+provider "aws" {
+  alias  = "us_east_1"
+  region = "us-east-1"
+}
+
+# Kubernetes Provider (configured after EKS cluster creation)
+provider "kubernetes" {
+  host                   = data.aws_eks_cluster.cluster.endpoint
+  cluster_ca_certificate = base64decode(data.aws_eks_cluster.cluster.certificate_authority[0].data)
+  token                  = data.aws_eks_cluster_auth.cluster.token
+
+  # Alternative: Use exec plugin
+  # exec {
+  #   api_version = "client.authentication.k8s.io/v1beta1"
+  #   command     = "aws"
+  #   args = [
+  #     "eks",
+  #     "get-token",
+  #     "--cluster-name",
+  #     module.eks.cluster_id
+  #   ]
+  # }
+}
+
+# Helm Provider (for Kubernetes applications)
+provider "helm" {
+  kubernetes {
+    host                   = data.aws_eks_cluster.cluster.endpoint
+    cluster_ca_certificate = base64decode(data.aws_eks_cluster.cluster.certificate_authority[0].data)
+    token                  = data.aws_eks_cluster_auth.cluster.token
+  }
+}
+
+# ============================================================================
+# DATA SOURCES
+# ============================================================================
+
+# Get current AWS account details
+data "aws_caller_identity" "current" {}
+
+# Get current AWS region
+data "aws_region" "current" {}
+
+# Get available availability zones
+data "aws_availability_zones" "available" {
+  state = "available"
+}
+
+# Get EKS cluster details (if using Kubernetes provider)
+data "aws_eks_cluster" "cluster" {
+  name = module.eks.cluster_id
+}
+
+data "aws_eks_cluster_auth" "cluster" {
+  name = module.eks.cluster_id
+}
+
+# ============================================================================
+# LOCAL VALUES
+# ============================================================================
+
+locals {
+  # Common naming conventions
+  name_prefix = "${var.project_name}-${var.environment}"
+
+  # Account and region info
+  account_id = data.aws_caller_identity.current.account_id
+  region     = data.aws_region.current.name
+
+  # Availability zones (limit to 3 for cost optimization)
+  azs = slice(data.aws_availability_zones.available.names, 0, 3)
+
+  # Environment-specific configuration
+  is_production = var.environment == "prod"
+
+  # Common tags
+  common_tags = {
+    Project     = var.project_name
+    Environment = var.environment
+    ManagedBy   = "terraform"
+    CreatedAt   = timestamp()
+  }
+
+  # VPC CIDR calculations
+  vpc_cidr = var.vpc_config.cidr_block
+
+  # Conditional resource creation flags
+  create_nat_gateway = var.vpc_config.enable_nat_gateway
+  multi_az_enabled   = var.environment == "prod" ? true : false
+}
+
+# ============================================================================
+# MODULES
+# ============================================================================
+
+# VPC Module
+module "vpc" {
+  source  = "terraform-aws-modules/vpc/aws"
+  version = "~> 5.0"
+
+  name = "${local.name_prefix}-vpc"
+  cidr = local.vpc_cidr
+
+  azs             = local.azs
+  private_subnets = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 4, k)]
+  public_subnets  = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 4, k + 4)]
+  database_subnets = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 4, k + 8)]
+
+  enable_nat_gateway   = var.vpc_config.enable_nat_gateway
+  single_nat_gateway   = !local.is_production
+  enable_dns_hostnames = var.vpc_config.enable_dns_hostnames
+  enable_dns_support   = var.vpc_config.enable_dns_support
+
+  # Enable VPC Flow Logs
+  enable_flow_log                      = true
+  create_flow_log_cloudwatch_iam_role  = true
+  create_flow_log_cloudwatch_log_group = true
+
+  # Kubernetes tags for subnet discovery
+  public_subnet_tags = {
+    "kubernetes.io/role/elb" = "1"
+  }
+
+  private_subnet_tags = {
+    "kubernetes.io/role/internal-elb" = "1"
+  }
+
+  tags = local.common_tags
+}
+
+# EKS Module
+module "eks" {
+  source  = "terraform-aws-modules/eks/aws"
+  version = "~> 19.0"
+
+  cluster_name    = "${local.name_prefix}-cluster"
+  cluster_version = var.eks_config.kubernetes_version
+
+  vpc_id     = module.vpc.vpc_id
+  subnet_ids = module.vpc.private_subnets
+
+  cluster_endpoint_private_access = var.eks_config.cluster_endpoint_private_access
+  cluster_endpoint_public_access  = var.eks_config.cluster_endpoint_public_access
+
+  # EKS Managed Node Groups
+  eks_managed_node_groups = var.eks_config.node_groups
+
+  # Cluster addons
+  cluster_addons = var.eks_config.cluster_addons
+
+  tags = local.common_tags
+
+  depends_on = [module.vpc]
+}
+
+# RDS Module
+module "rds" {
+  source  = "terraform-aws-modules/rds/aws"
+  version = "~> 6.0"
+
+  identifier = "${local.name_prefix}-db"
+
+  engine               = var.database_config.engine
+  engine_version       = var.database_config.engine_version
+  family               = "postgres15"
+  major_engine_version = "15"
+  instance_class       = var.database_config.instance_class
+
+  allocated_storage     = var.database_config.allocated_storage
+  max_allocated_storage = var.database_config.allocated_storage * 2
+
+  db_name  = replace(var.project_name, "-", "_")
+  username = "admin"
+  port     = 5432
+
+  multi_az               = var.database_config.multi_az
+  db_subnet_group_name   = module.vpc.database_subnet_group_name
+  vpc_security_group_ids = [module.security_group_rds.security_group_id]
+
+  maintenance_window      = "Mon:00:00-Mon:03:00"
+  backup_window           = "03:00-06:00"
+  backup_retention_period = var.database_config.backup_retention_period
+
+  enabled_cloudwatch_logs_exports = ["postgresql", "upgrade"]
+
+  tags = local.common_tags
+
+  depends_on = [module.vpc]
+}
+
+# ALB Module
+module "alb" {
+  source  = "terraform-aws-modules/alb/aws"
+  version = "~> 8.0"
+
+  name = "${local.name_prefix}-alb"
+
+  load_balancer_type = "application"
+
+  vpc_id          = module.vpc.vpc_id
+  subnets         = module.vpc.public_subnets
+  security_groups = [module.security_group_alb.security_group_id]
+
+  access_logs = {
+    bucket = module.s3_bucket_logs.s3_bucket_id
+    prefix = "alb-logs"
+  }
+
+  target_groups = [
+    {
+      name             = "${local.name_prefix}-tg"
+      backend_protocol = "HTTP"
+      backend_port     = 8080
+      target_type      = "ip"
+    }
+  ]
+
+  https_listeners = [
+    {
+      port               = 443
+      protocol           = "HTTPS"
+      certificate_arn    = module.acm.acm_certificate_arn
+      target_group_index = 0
+    }
+  ]
+
+  http_tcp_listeners = [
+    {
+      port     = 80
+      protocol = "HTTP"
+      action_type = "redirect"
+      redirect = {
+        port        = "443"
+        protocol    = "HTTPS"
+        status_code = "HTTP_301"
+      }
+    }
+  ]
+
+  tags = local.common_tags
+
+  depends_on = [module.vpc]
+}
+
+# S3 Buckets
+module "s3_bucket_app" {
+  source  = "terraform-aws-modules/s3-bucket/aws"
+  version = "~> 3.0"
+
+  bucket = "${local.name_prefix}-app-bucket"
+
+  versioning = {
+    enabled = true
+  }
+
+  server_side_encryption_configuration = {
+    rule = {
+      apply_server_side_encryption_by_default = {
+        sse_algorithm = "AES256"
+      }
+    }
+  }
+
+  tags = local.common_tags
+}
+
+module "s3_bucket_logs" {
+  source  = "terraform-aws-modules/s3-bucket/aws"
+  version = "~> 3.0"
+
+  bucket = "${local.name_prefix}-logs-bucket"
+
+  versioning = {
+    enabled = true
+  }
+
+  lifecycle_rule = [
+    {
+      id      = "logs"
+      enabled = true
+
+      expiration = {
+        days = 30
+      }
+    }
+  ]
+
+  tags = local.common_tags
+}
+
+# Security Groups
+module "security_group_alb" {
+  source  = "terraform-aws-modules/security-group/aws"
+  version = "~> 5.0"
+
+  name        = "${local.name_prefix}-alb-sg"
+  description = "Security group for Application Load Balancer"
+  vpc_id      = module.vpc.vpc_id
+
+  ingress_with_cidr_blocks = [
+    {
+      from_port   = 80
+      to_port     = 80
+      protocol    = "tcp"
+      cidr_blocks = "0.0.0.0/0"
+    },
+    {
+      from_port   = 443
+      to_port     = 443
+      protocol    = "tcp"
+      cidr_blocks = "0.0.0.0/0"
+    }
+  ]
+
+  egress_rules = ["all-all"]
+
+  tags = local.common_tags
+}
+
+module "security_group_rds" {
+  source  = "terraform-aws-modules/security-group/aws"
+  version = "~> 5.0"
+
+  name        = "${local.name_prefix}-rds-sg"
+  description = "Security group for RDS database"
+  vpc_id      = module.vpc.vpc_id
+
+  ingress_with_source_security_group_id = [
+    {
+      from_port                = 5432
+      to_port                  = 5432
+      protocol                 = "tcp"
+      source_security_group_id = module.eks.node_security_group_id
+    }
+  ]
+
+  tags = local.common_tags
+}
+
+# ACM Certificate
+module "acm" {
+  source  = "terraform-aws-modules/acm/aws"
+  version = "~> 4.0"
+
+  domain_name = "{{DOMAIN_NAME}}" # e.g., "example.com"
+  zone_id     = data.aws_route53_zone.main.zone_id
+
+  subject_alternative_names = [
+    "*.{{DOMAIN_NAME}}",
+  ]
+
+  wait_for_validation = true
+
+  tags = local.common_tags
+}
+
+# Route53
+data "aws_route53_zone" "main" {
+  name         = "{{DOMAIN_NAME}}"
+  private_zone = false
+}
+
+# ============================================================================
+# STANDALONE RESOURCES
+# ============================================================================
+
+# KMS Key for general encryption
+resource "aws_kms_key" "main" {
+  description             = "KMS key for ${var.project_name}-${var.environment}"
+  deletion_window_in_days = 10
+  enable_key_rotation     = true
+
+  tags = local.common_tags
+}
+
+resource "aws_kms_alias" "main" {
+  name          = "alias/${local.name_prefix}"
+  target_key_id = aws_kms_key.main.key_id
+}
+
+# CloudWatch Log Group
+resource "aws_cloudwatch_log_group" "main" {
+  name              = "/aws/${var.project_name}/${var.environment}"
+  retention_in_days = 30
+
+  tags = local.common_tags
+}
+
+# ============================================================================
+# OUTPUTS
+# ============================================================================
+
+output "vpc_id" {
+  description = "The ID of the VPC"
+  value       = module.vpc.vpc_id
+}
+
+output "eks_cluster_endpoint" {
+  description = "Endpoint for EKS control plane"
+  value       = module.eks.cluster_endpoint
+}
+
+output "rds_endpoint" {
+  description = "The connection endpoint"
+  value       = module.rds.db_instance_endpoint
+}
+
+output "alb_dns_name" {
+  description = "The DNS name of the load balancer"
+  value       = module.alb.lb_dns_name
+}
+
+output "account_id" {
+  description = "AWS Account ID"
+  value       = local.account_id
+}
+
+output "region" {
+  description = "AWS Region"
+  value       = local.region
+}

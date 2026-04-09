@@ -1,0 +1,102 @@
+import React from 'react';
+import { useForm, SubmitHandler } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+
+/**
+ * Form validation schema
+ */
+const {{FORM_NAME}}Schema = z.object({
+  {{FIELDS}}
+  // Example: email: z.string().email('Invalid email address'),
+  // Example: password: z.string().min(8, 'Password must be at least 8 characters'),
+});
+
+/**
+ * Form data type inferred from schema
+ */
+type {{FORM_NAME}}FormData = z.infer<typeof {{FORM_NAME}}Schema>;
+
+/**
+ * Props for the {{FORM_NAME}} component
+ */
+interface {{FORM_NAME}}Props {
+  onSubmit: (data: {{FORM_NAME}}FormData) => Promise<void> | void;
+  isLoading?: boolean;
+  defaultValues?: Partial<{{FORM_NAME}}FormData>;
+}
+
+/**
+ * {{FORM_NAME}} component with form validation
+ */
+export const {{FORM_NAME}}: React.FC<{{FORM_NAME}}Props> = ({
+  onSubmit,
+  isLoading = false,
+  defaultValues,
+}) => {
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+    reset,
+  } = useForm<{{FORM_NAME}}FormData>({
+    resolver: zodResolver({{FORM_NAME}}Schema),
+    defaultValues,
+  });
+
+  const onSubmitHandler: SubmitHandler<{{FORM_NAME}}FormData> = async (data) => {
+    try {
+      await onSubmit(data);
+      reset();
+    } catch (error) {
+      console.error('Form submission error:', error);
+    }
+  };
+
+  return (
+    <form
+      onSubmit={handleSubmit(onSubmitHandler)}
+      className="{{FORM_NAME}}-form"
+      noValidate
+      aria-label="{{FORM_NAME}} form"
+    >
+      {/* Form fields */}
+      <div className="form-group">
+        <label htmlFor="field-name" className="form-label">
+          Field Label
+        </label>
+        <input
+          id="field-name"
+          type="text"
+          className="form-input"
+          aria-invalid={errors.fieldName ? 'true' : 'false'}
+          aria-describedby={errors.fieldName ? 'field-name-error' : undefined}
+          {...register('fieldName')}
+        />
+        {errors.fieldName && (
+          <span
+            id="field-name-error"
+            className="error-message"
+            role="alert"
+          >
+            {errors.fieldName.message}
+          </span>
+        )}
+      </div>
+
+      {/* Submit button */}
+      <button
+        type="submit"
+        className="submit-button"
+        disabled={isSubmitting || isLoading}
+        aria-busy={isSubmitting || isLoading}
+      >
+        {isSubmitting || isLoading ? 'Submitting...' : 'Submit'}
+      </button>
+    </form>
+  );
+};
+
+{{FORM_NAME}}.displayName = '{{FORM_NAME}}';
+
+export default {{FORM_NAME}};
