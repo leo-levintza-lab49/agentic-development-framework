@@ -298,14 +298,139 @@ gh project item-list 1 \
 
 ### Automated Issue Creation for Historical Work
 
-Create closed issues for past work (preserves history):
+**Script**: `scripts/create-historical-issues.sh`
+
+Create closed issues for past work (preserves history). This script is designed for **one-time historical migration** when transitioning from file-based tracking to GitHub Issues.
+
+#### Usage
 
 ```bash
-# See scripts/create-historical-issues.sh in plan
-# Creates 127 closed issues with proper dates for:
-# - 95 multi-repo PRs
-# - 19 monorepo services
-# - 13 framework enhancements
+cd ~/wrk/agentic-development-framework
+
+# Run the script
+./scripts/create-historical-issues.sh
+
+# Dry run mode (no issues created)
+DRY_RUN=true ./scripts/create-historical-issues.sh
+```
+
+#### What It Creates
+
+**Total**: 127 closed issues with completion dates
+
+1. **Multi-repo PRs (95 issues)**
+   - Organization: polybase-poc
+   - Repositories: 18 repos (user-service, auth-service, order-service, etc.)
+   - Project: "Polybase Multi-Repo Development Roadmap" (#2)
+   - Labels: feat, [team], historical, completed
+
+2. **Monorepo Services (19 issues)**
+   - Organization: omnibase-poc
+   - Repository: enterprise-monorepo
+   - Project: "Omnibase Enterprise Monorepo Roadmap" (#1)
+   - Labels: feat, [team], historical, completed
+
+3. **Framework Enhancements (13 issues)**
+   - Organization: leo-levintza-lab49
+   - Repository: agentic-development-framework
+   - Items: 7 SVG images + 6 script enhancements
+   - Labels: docs/feat, chore, historical, completed
+
+#### Features
+
+- **Automatic Throttling**: 3 seconds between issue creations
+- **Rate Limit Monitoring**: Checks API limits every 20 issues
+- **Label Management**: Creates consistent labels across repos
+- **Project Integration**: Adds issues to GitHub Projects automatically
+- **Closed by Default**: All issues created as closed with 2026-04-09 completion date
+- **Dry Run Support**: Test without creating issues
+- **Progress Logging**: Color-coded output with detailed progress
+
+#### Throttling and Rate Limits
+
+The script implements several safeguards:
+
+- **3-second delay** between each issue creation
+- **Rate limit checks** every 20 issues
+- **Automatic waiting** when rate limit drops below 100
+- **Error handling** for failed issue creation
+- **Resume capability** - re-running skips existing issues
+
+#### When to Use
+
+✅ **Use for**:
+- Initial migration from file-based tracking to GitHub
+- Preserving historical work in GitHub Projects
+- Populating roadmap with past accomplishments
+
+❌ **Don't use for**:
+- Regular ongoing work (use `/issue-sync` instead)
+- Current tasks (let agents create issues automatically)
+- Test repositories (use dry run mode first)
+
+#### Environment Requirements
+
+- GitHub CLI (`gh`) authenticated
+- Write access to target organizations
+- Project permissions for polybase-poc and omnibase-poc
+- Repository access to all target repos
+
+#### Output Example
+
+```
+✓ Starting historical issue creation...
+✓ Throttle: 3s between issues
+ℹ API Rate Limit: 4997/5000 remaining
+
+==========================================
+PHASE 1: Multi-Repo PRs (95 issues)
+==========================================
+
+ℹ Creating 12 issues for order-service (team: backend)...
+✓ Created issue #13: PR #1 completed (historical)
+✓ Closed issue #13
+...
+
+==========================================
+✅ HISTORICAL ISSUE CREATION COMPLETE
+==========================================
+
+Total Issues Created: 127
+  - Multi-repo PRs (polybase-poc): 95 issues
+  - Monorepo services (omnibase-poc): 19 issues
+  - Framework enhancements: 13 issues
+```
+
+#### Troubleshooting
+
+**Rate Limit Errors**:
+```bash
+# Check current rate limit
+gh api rate_limit
+
+# Wait for reset if needed
+# The script automatically handles this
+```
+
+**Permission Errors**:
+```bash
+# Verify org access
+gh repo list polybase-poc
+gh repo list omnibase-poc
+
+# Refresh auth if needed
+gh auth refresh -s project,read:project
+```
+
+**Duplicate Issues**:
+The script doesn't check for existing issues. If you need to re-run, first clean up any partial runs:
+
+```bash
+# List historical issues
+gh issue list --repo polybase-poc/order-service --label historical
+
+# Close duplicates if needed
+gh issue close <NUMBER> --comment "Duplicate"
 ```
 
 ### Issue Templates

@@ -85,6 +85,12 @@ gh repo list omnibase-poc --limit 5
 
 # Generate service in monorepo
 ./scripts/generate-monorepo-service.sh backend user-service java
+
+# Create historical GitHub issues (one-time migration)
+./scripts/create-historical-issues.sh
+
+# Dry run to preview (recommended first)
+DRY_RUN=true ./scripts/create-historical-issues.sh
 ```
 
 ### Claude Code Skills
